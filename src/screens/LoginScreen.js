@@ -17,7 +17,7 @@ const LoginScreen = ({ setIsLoggedIn }) => {
   const handleLogin = async () => {
     if (email && password) {
       try {
-        const response = await fetch('http://192.168.62.184:8000/auth/login', {
+        const response = await fetch('http://192.168.230.184:8000/auth/login', {
           // Replace with your machine's IP address
           method: 'POST',
           headers: {
