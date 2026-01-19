@@ -1,7 +1,5 @@
 import React from 'react';
-import { createDrawerNavigator } from '@react-navigation/drawer';
-import { Image, View } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/HomeScreen';
 import ClassesScreen from '../screens/ClassesScreen';
 import MarkSheetsScreen from '../screens/MarkSheetsScreen';
@@ -19,11 +17,11 @@ import HostelScreen from '../screens/HostelScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
 import RequestCertificateManagementScreen from '../screens/RequestCertificateManagementScreen';
 
-const Drawer = createDrawerNavigator();
+const Stack = createNativeStackNavigator();
 
-const DrawerNavigator = () => {
+const HomeStackNavigator = () => {
   return (
-    <Drawer.Navigator
+    <Stack.Navigator
       initialRouteName="Home"
       screenOptions={{
         headerShown: true,
@@ -32,31 +30,31 @@ const DrawerNavigator = () => {
         headerStyle: { backgroundColor: 'transparent' },
       }}
     >
-      <Drawer.Screen
+      <Stack.Screen
         name="Home"
         component={HomeScreen}
         options={{ headerShown: false }}
       />
-      <Drawer.Screen name="Classes" component={ClassesScreen} />
-      <Drawer.Screen name="Mark Sheets" component={MarkSheetsScreen} />
-      <Drawer.Screen name="Assignments" component={AssignmentsScreen} />
-      <Drawer.Screen name="Time Table" component={TimeTableScreen} />
-      <Drawer.Screen name="Notice Board" component={NoticeBoardScreen} />
-      <Drawer.Screen name="Library" component={LibraryScreen} />
-      <Drawer.Screen name="Attendance" component={AttendanceScreen} />
-      <Drawer.Screen name="Home Work" component={HomeWorkScreen} />
-      <Drawer.Screen name="Admin Request" component={AdminRequestScreen} />
-      <Drawer.Screen name="Fee Payment" component={FeePaymentScreen} />
-      <Drawer.Screen name="Event" component={EventScreen} />
-      <Drawer.Screen name="Transport" component={TransportScreen} />
-      <Drawer.Screen name="Hostel" component={HostelScreen} />
-      <Drawer.Screen name="Analytics" component={AnalyticsScreen} />
-      <Drawer.Screen
+      <Stack.Screen name="Classes" component={ClassesScreen} />
+      <Stack.Screen name="Mark Sheets" component={MarkSheetsScreen} />
+      <Stack.Screen name="Assignments" component={AssignmentsScreen} />
+      <Stack.Screen name="Time Table" component={TimeTableScreen} />
+      <Stack.Screen name="Notice Board" component={NoticeBoardScreen} />
+      <Stack.Screen name="Library" component={LibraryScreen} />
+      <Stack.Screen name="Attendance" component={AttendanceScreen} />
+      <Stack.Screen name="Home Work" component={HomeWorkScreen} />
+      <Stack.Screen name="Admin Request" component={AdminRequestScreen} />
+      <Stack.Screen name="Fee Payment" component={FeePaymentScreen} />
+      <Stack.Screen name="Event" component={EventScreen} />
+      <Stack.Screen name="Transport" component={TransportScreen} />
+      <Stack.Screen name="Hostel" component={HostelScreen} />
+      <Stack.Screen name="Analytics" component={AnalyticsScreen} />
+      <Stack.Screen
         name="Request & Certificate Management"
         component={RequestCertificateManagementScreen}
       />
-    </Drawer.Navigator>
+    </Stack.Navigator>
   );
 };
 
-export default DrawerNavigator;
+export default HomeStackNavigator;
