@@ -13,7 +13,7 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 import LoginScreen from './screens/LoginScreen';
-import DrawerNavigator from './navigation/DrawerNavigator';
+import BottomNavigator from './navigation/BottomNavigator';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -27,7 +27,7 @@ function App() {
           }
         />
         {isLoggedIn ? (
-          <DrawerNavigator />
+          <BottomNavigator />
         ) : (
           <LoginScreen setIsLoggedIn={setIsLoggedIn} />
         )}
