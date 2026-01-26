@@ -24,7 +24,7 @@ const Drawer = createDrawerNavigator();
 const DrawerNavigator = () => {
   return (
     <Drawer.Navigator
-      initialRouteName="Home"
+      initialRouteName="MainHome"
       screenOptions={{
         headerShown: true,
         headerTransparent: true,
@@ -33,7 +33,7 @@ const DrawerNavigator = () => {
       }}
     >
       <Drawer.Screen
-        name="Home"
+        name="MainHome"
         component={HomeScreen}
         options={{ headerShown: false }}
       />

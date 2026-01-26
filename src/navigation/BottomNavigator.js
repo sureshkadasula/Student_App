@@ -12,14 +12,33 @@ const Tab = createBottomTabNavigator();
 const BottomNavigator = () => {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      screenOptions={({ route, navigation }) => ({
         headerShown: false,
         tabBarActiveTintColor: '#FF751F',
         tabBarInactiveTintColor: 'gray',
+        listeners: {
+          tabPress: e => {
+            if (route.name === 'MainHome') {
+              e.preventDefault();
+              navigation.reset({
+                index: 0,
+                routes: [
+                  {
+                    name: 'MainHome',
+                    state: {
+                      routes: [{ name: 'MainHome' }],
+                      index: 0,
+                    },
+                  },
+                ],
+              });
+            }
+          },
+        },
         tabBarIcon: ({ color, size }) => {
           let iconName;
 
-          if (route.name === 'Home') {
+          if (route.name === 'MainHome') {
             iconName = 'home';
           } else if (route.name === 'Profile') {
             iconName = 'user';
@@ -31,11 +50,11 @@ const BottomNavigator = () => {
             iconName = 'file-text-o';
           }
 
-          return <Icon name={iconName} size={size} color={color} />;
+          return <Icon name={iconName} size={18} color={color} />;
         },
       })}
     >
-      <Tab.Screen name="Home" component={DrawerNavigator} />
+      <Tab.Screen name="MainHome" component={DrawerNavigator} />
       <Tab.Screen name="Profile" component={ProfileStackNavigator} />
       <Tab.Screen name="Feature Catalogue" component={FeatureCatalogueScreen} />
       <Tab.Screen name="Calendar" component={CalendarScreen} />
