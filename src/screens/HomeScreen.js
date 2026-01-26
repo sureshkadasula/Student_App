@@ -56,6 +56,7 @@ const HomeScreen = () => {
             duration: 15000,
             useNativeDriver: true,
           }),
+          Animated.delay(1000),
           Animated.timing(scrollAnim, {
             toValue: 0,
             duration: 0,
@@ -126,6 +127,7 @@ const HomeScreen = () => {
               fontSize: 16,
               transform: [{ translateX: scrollAnim }],
             }}
+            numberOfLines={1}
           >
             Welcome to Student App - Latest Updates and Announcements Here
             Welcome to Student App - Latest Updates and Announcements Here
@@ -135,12 +137,13 @@ const HomeScreen = () => {
           <ScrollView
             ref={scrollViewRef}
             horizontal
-            pagingEnabled
+            snapToInterval={Dimensions.get('window').width - 20}
             showsHorizontalScrollIndicator={false}
+            style={{ marginTop: 10 }}
             onMomentumScrollEnd={event => {
               const slideIndex = Math.round(
                 event.nativeEvent.contentOffset.x /
-                  event.nativeEvent.layoutMeasurement.width,
+                  (Dimensions.get('window').width - 20),
               );
               setActiveSlide(slideIndex);
             }}
@@ -149,17 +152,33 @@ const HomeScreen = () => {
               <View
                 key={index}
                 style={{
-                  width: Dimensions.get('window').width,
-                  height: 250,
+                  width: Dimensions.get('window').width - 20,
+                  height: 200,
                   justifyContent: 'center',
                   alignItems: 'center',
+                  marginHorizontal: 10,
                 }}
               >
-                <Image
-                  source={slide}
-                  style={{ width: '100%', height: '100%' }}
-                  resizeMode="cover"
-                />
+                <View
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: '#fff',
+                    borderRadius: 15,
+                    elevation: 10,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 5,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Image
+                    source={slide}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                  />
+                </View>
               </View>
             ))}
           </ScrollView>
@@ -190,20 +209,20 @@ const HomeScreen = () => {
         <View style={styles.container}>
           <Text style={styles.title}>Explore Our Feature</Text>
           <View style={styles.card}>
-           <View style={styles.categoriesContainer}>
-            {categories.map((cat, index) => (
-              <View key={index} style={styles.categoryItem}>
-                <TouchableOpacity
-                  style={styles.categoryCircle}
-                  onPress={() => navigation.navigate(cat.screen)}
-                >
-                  <Icon name={cat.icon} size={20} color="#fff" />
-                </TouchableOpacity>
-                <Text style={styles.categoryText}>{cat.name}</Text>
-              </View>
-            ))}
+            <View style={styles.categoriesContainer}>
+              {categories.map((cat, index) => (
+                <View key={index} style={styles.categoryItem}>
+                  <TouchableOpacity
+                    style={styles.categoryCircle}
+                    onPress={() => navigation.navigate(cat.screen)}
+                  >
+                    <Icon name={cat.icon} size={20} color="#fff" />
+                  </TouchableOpacity>
+                  <Text style={styles.categoryText}>{cat.name}</Text>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
         </View>
       </ScrollView>
     </View>
@@ -248,19 +267,19 @@ const styles = StyleSheet.create({
   categoryItem: {
     alignItems: 'center',
     width: (Dimensions.get('window').width - 40) / 4 - 4,
-    margin: 2,
+    margin: 1,
   },
   categoryCircle: {
-    width: 60,
-    height: 60,
+    width: 30,
+    height: 30,
     borderRadius: 30,
     backgroundColor: '#FF751F',
     justifyContent: 'center',
     alignItems: 'center',
   },
   categoryText: {
-    color: '#FF751F',
-    fontSize: 12,
+    // color: '#FF751F',
+    fontSize: 10,
     fontWeight: 'bold',
   },
 });

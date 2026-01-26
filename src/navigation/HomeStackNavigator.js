@@ -22,7 +22,7 @@ const Stack = createNativeStackNavigator();
 const HomeStackNavigator = () => {
   return (
     <Stack.Navigator
-      initialRouteName="Home"
+      initialRouteName="HomeMain"
       screenOptions={{
         headerShown: true,
         headerTransparent: true,
@@ -31,7 +31,7 @@ const HomeStackNavigator = () => {
       }}
     >
       <Stack.Screen
-        name="Home"
+        name="HomeMain"
         component={HomeScreen}
         options={{ headerShown: false }}
       />

@@ -117,4 +117,7 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+    
+    // React Native HTML to PDF
+    implementation(project(":react-native-html-to-pdf"))
 }
