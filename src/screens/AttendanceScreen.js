@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,284 +7,20 @@ import {
   TouchableOpacity,
   FlatList,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-
-// Sample attendance data
-const attendanceData = [
-  {
-    id: '1',
-    date: '2024-01-24',
-    subject: 'Mathematics',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '2',
-    date: '2024-01-24',
-    subject: 'Science',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '3',
-    date: '2024-01-24',
-    subject: 'English',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '4',
-    date: '2024-01-23',
-    subject: 'Mathematics',
-    status: 'Absent',
-    timeIn: null,
-    timeOut: null,
-    remarks: 'Sick leave',
-  },
-  {
-    id: '5',
-    date: '2024-01-23',
-    subject: 'Science',
-    status: 'Present',
-    timeIn: '09:00 AM',
-    timeOut: '02:30 PM',
-    remarks: 'Late by 15 minutes',
-  },
-  {
-    id: '6',
-    date: '2024-01-23',
-    subject: 'English',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '7',
-    date: '2024-01-22',
-    subject: 'Mathematics',
-    status: 'Present',
-    timeIn: '08:40 AM',
-    timeOut: '02:30 PM',
-    remarks: 'Early',
-  },
-  {
-    id: '8',
-    date: '2024-01-22',
-    subject: 'Science',
-    status: 'Late',
-    timeIn: '09:15 AM',
-    timeOut: '02:30 PM',
-    remarks: 'Traffic delay',
-  },
-  {
-    id: '9',
-    date: '2024-01-22',
-    subject: 'English',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '10',
-    date: '2024-01-21',
-    subject: 'Mathematics',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '11',
-    date: '2024-01-21',
-    subject: 'Science',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '12',
-    date: '2024-01-21',
-    subject: 'English',
-    status: 'Excused',
-    timeIn: null,
-    timeOut: null,
-    remarks: 'Medical appointment',
-  },
-  {
-    id: '13',
-    date: '2024-01-20',
-    subject: 'Mathematics',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '14',
-    date: '2024-01-20',
-    subject: 'Science',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '15',
-    date: '2024-01-20',
-    subject: 'English',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '16',
-    date: '2024-01-19',
-    subject: 'Mathematics',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '17',
-    date: '2024-01-19',
-    subject: 'Science',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '18',
-    date: '2024-01-19',
-    subject: 'English',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '19',
-    date: '2024-01-18',
-    subject: 'Mathematics',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '20',
-    date: '2024-01-18',
-    subject: 'Science',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '21',
-    date: '2024-01-18',
-    subject: 'English',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '22',
-    date: '2024-01-17',
-    subject: 'Mathematics',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '23',
-    date: '2024-01-17',
-    subject: 'Science',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '24',
-    date: '2024-01-17',
-    subject: 'English',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '25',
-    date: '2024-01-16',
-    subject: 'Mathematics',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '26',
-    date: '2024-01-16',
-    subject: 'Science',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '27',
-    date: '2024-01-16',
-    subject: 'English',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '28',
-    date: '2024-01-15',
-    subject: 'Mathematics',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '29',
-    date: '2024-01-15',
-    subject: 'Science',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-  {
-    id: '30',
-    date: '2024-01-15',
-    subject: 'English',
-    status: 'Present',
-    timeIn: '08:45 AM',
-    timeOut: '02:30 PM',
-    remarks: 'On time',
-  },
-];
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../config/api';
+import { request } from '../services/api';
+// import useAuth from '../hooks/useAuth'; // We will read directly from storage
 
 const AttendanceScreen = () => {
+  // const { token } = useAuth(); // Removed to avoid race condition/double triggers
+  const [attendanceData, setAttendanceData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [selectedSubject, setSelectedSubject] = useState('All');
   const [selectedDateRange, setSelectedDateRange] = useState('This Month');
   const [selectedStatus, setSelectedStatus] = useState('All');
@@ -293,6 +29,80 @@ const AttendanceScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('Weekly');
 
+  useEffect(() => {
+    fetchAttendance();
+  }, []); // Run once on mount
+
+  const fetchAttendance = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // 1. Get token from storage (auth_session)
+      const sessionStr = await AsyncStorage.getItem('auth_session');
+      if (!sessionStr) {
+        throw new Error('No session found, please login again.');
+      }
+      const session = JSON.parse(sessionStr);
+      const token = session.token;
+      if (!token) {
+        throw new Error('Token missing from session.');
+      }
+
+      // 2. Get profile from storage to get student IDs
+      const storedProfile = await AsyncStorage.getItem('student_profile');
+      if (!storedProfile) {
+        throw new Error('Student profile not found. Please pull to refresh on Profile screen.');
+      }
+
+      const profile = JSON.parse(storedProfile);
+      const classId = profile.class_id;
+      // Prefer student_id (UUID), fallback to id (Postgres ID/UUID depending on schema)
+      const studentId = profile.id;
+
+      if (!classId || !studentId) {
+        throw new Error('Class or Student ID missing in profile.');
+      }
+
+      // 3. Fetch attendance
+      const limit = 100;
+      const url = `/classes/${classId}/students/${studentId}/attendance?limit=${limit}`;
+
+      console.log('🚀 [AttendanceScreen] Fetching:', url);
+
+      const response = await request(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      console.log('📦 [AttendanceScreen] Response Status:', response.status);
+
+      if (response.success) {
+        // Map API response to UI model
+        const mappedData = response.data.attendance_records.map(r => ({
+          id: r.id,
+          date: r.attendance_date,
+          subject: r.subject || 'General',
+          status: r.status,
+          remarks: r.remarks,
+          timeIn: r.marked_at ? new Date(r.marked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--',
+          timeOut: null,
+        }));
+
+        setAttendanceData(mappedData);
+      } else {
+        throw new Error(response.error || 'Failed to fetch attendance');
+      }
+
+    } catch (err) {
+      console.error('❌ [AttendanceScreen] Error:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Get unique subjects for filter options
   const subjects = useMemo(() => {
     const uniqueSubjects = [
@@ -300,7 +110,7 @@ const AttendanceScreen = () => {
       ...new Set(attendanceData.map(a => a.subject)),
     ];
     return uniqueSubjects;
-  }, []);
+  }, [attendanceData]);
 
   // Calculate attendance for different periods
   const getPeriodAttendance = period => {
@@ -308,15 +118,12 @@ const AttendanceScreen = () => {
     let startDate;
 
     if (period === 'Weekly') {
-      // Get start of current week (Monday)
       const day = today.getDay();
       const diff = today.getDate() - day + (day === 0 ? -6 : 1);
       startDate = new Date(today.setDate(diff));
     } else if (period === 'Monthly') {
-      // Get start of current month
       startDate = new Date(today.getFullYear(), today.getMonth(), 1);
     } else if (period === 'Yearly') {
-      // Get start of current year
       startDate = new Date(today.getFullYear(), 0, 1);
     }
 
@@ -324,16 +131,10 @@ const AttendanceScreen = () => {
       record => new Date(record.date) >= startDate,
     );
 
-    const presentRecords = periodRecords.filter(
-      a => a.status === 'Present',
-    ).length;
-    const absentRecords = periodRecords.filter(
-      a => a.status === 'Absent',
-    ).length;
+    const presentRecords = periodRecords.filter(a => a.status === 'Present').length;
+    const absentRecords = periodRecords.filter(a => a.status === 'Absent').length;
     const lateRecords = periodRecords.filter(a => a.status === 'Late').length;
-    const excusedRecords = periodRecords.filter(
-      a => a.status === 'Excused',
-    ).length;
+    const excusedRecords = periodRecords.filter(a => a.status === 'Excused').length;
 
     const totalPresent = presentRecords + lateRecords + excusedRecords;
     const totalRecords = periodRecords.length;
@@ -344,192 +145,127 @@ const AttendanceScreen = () => {
       late: lateRecords,
       excused: excusedRecords,
       total: totalRecords,
-      percentage:
-        totalRecords > 0 ? Math.round((totalPresent / totalRecords) * 100) : 0,
+      percentage: totalRecords > 0 ? Math.round((totalPresent / totalRecords) * 100) : 0,
     };
   };
 
   // Calculate overall attendance percentage
   const overallAttendance = useMemo(() => {
     const totalRecords = attendanceData.length;
-    const presentRecords = attendanceData.filter(
-      a => a.status === 'Present',
-    ).length;
+    const presentRecords = attendanceData.filter(a => a.status === 'Present').length;
     const lateRecords = attendanceData.filter(a => a.status === 'Late').length;
-    const excusedRecords = attendanceData.filter(
-      a => a.status === 'Excused',
-    ).length;
+    const excusedRecords = attendanceData.filter(a => a.status === 'Excused').length;
     const totalPresent = presentRecords + lateRecords + excusedRecords;
-    return totalRecords > 0
-      ? Math.round((totalPresent / totalRecords) * 100)
-      : 0;
-  }, []);
+    return totalRecords > 0 ? Math.round((totalPresent / totalRecords) * 100) : 0;
+  }, [attendanceData]);
 
   // Calculate subject-wise attendance percentage
   const getSubjectAttendance = subject => {
     const subjectRecords = attendanceData.filter(a => a.subject === subject);
-    const presentRecords = subjectRecords.filter(
-      a => a.status === 'Present',
-    ).length;
+    const presentRecords = subjectRecords.filter(a => a.status === 'Present').length;
     const lateRecords = subjectRecords.filter(a => a.status === 'Late').length;
-    const excusedRecords = subjectRecords.filter(
-      a => a.status === 'Excused',
-    ).length;
+    const excusedRecords = subjectRecords.filter(a => a.status === 'Excused').length;
     const totalPresent = presentRecords + lateRecords + excusedRecords;
-    return subjectRecords.length > 0
-      ? Math.round((totalPresent / subjectRecords.length) * 100)
-      : 0;
+    return subjectRecords.length > 0 ? Math.round((totalPresent / subjectRecords.length) * 100) : 0;
   };
 
   // Filter and search attendance
   const filteredAttendance = useMemo(() => {
     let filtered = attendanceData;
 
-    // Apply subject filter
-    if (selectedSubject !== 'All') {
-      filtered = filtered.filter(record => record.subject === selectedSubject);
-    }
+    // Apply filters
+    if (selectedSubject !== 'All') filtered = filtered.filter(record => record.subject === selectedSubject);
+    if (selectedStatus !== 'All') filtered = filtered.filter(record => record.status === selectedStatus);
 
-    // Apply status filter
-    if (selectedStatus !== 'All') {
-      filtered = filtered.filter(record => record.status === selectedStatus);
-    }
-
-    // Apply date range filter
     if (selectedDateRange !== 'All Time') {
       const today = new Date();
       let startDate;
-
-      if (selectedDateRange === 'This Month') {
-        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-      } else if (selectedDateRange === 'Last Month') {
-        startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      }
+      if (selectedDateRange === 'This Month') startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      else if (selectedDateRange === 'Last Month') startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
 
       filtered = filtered.filter(record => new Date(record.date) >= startDate);
     }
 
-    // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        record =>
-          record.date.toLowerCase().includes(query) ||
-          record.subject.toLowerCase().includes(query) ||
-          record.status.toLowerCase().includes(query),
+      filtered = filtered.filter(record =>
+        record.date.toLowerCase().includes(query) ||
+        record.subject.toLowerCase().includes(query) ||
+        record.status.toLowerCase().includes(query),
       );
     }
 
-    // Sort by date (newest first)
     return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [selectedSubject, selectedDateRange, selectedStatus, searchQuery]);
+  }, [selectedSubject, selectedDateRange, selectedStatus, searchQuery, attendanceData]);
 
-  // Get status color
+  // UI Helpers
   const getStatusColor = status => {
     switch (status) {
-      case 'Present':
-        return '#4CAF50'; // Green
-      case 'Absent':
-        return '#F44336'; // Red
-      case 'Late':
-        return '#FF9800'; // Orange
-      case 'Excused':
-        return '#2196F3'; // Blue
-      default:
-        return '#757575'; // Gray
+      case 'Present': return '#4CAF50';
+      case 'Absent': return '#F44336';
+      case 'Late': return '#FF9800';
+      case 'Excused': return '#2196F3';
+      default: return '#757575';
     }
   };
 
-  // Get status icon
   const getStatusIcon = status => {
     switch (status) {
-      case 'Present':
-        return 'check-circle';
-      case 'Absent':
-        return 'times-circle';
-      case 'Late':
-        return 'clock-o';
-      case 'Excused':
-        return 'info-circle';
-      default:
-        return 'question-circle';
+      case 'Present': return 'check-circle';
+      case 'Absent': return 'times-circle';
+      case 'Late': return 'clock-o';
+      case 'Excused': return 'info-circle';
+      default: return 'question-circle';
     }
   };
 
-  // Format date
   const formatDate = dateStr => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  // Handle view record details
   const handleViewDetails = record => {
     setSelectedRecord(record);
     setModalVisible(true);
   };
 
-  // Render attendance card
-  const renderAttendanceCard = ({ item }) => {
-    return (
-      <TouchableOpacity
-        style={styles.attendanceCard}
-        onPress={() => handleViewDetails(item)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.cardHeader}>
-          <Text style={styles.attendanceDate}>{formatDate(item.date)}</Text>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: getStatusColor(item.status) },
-            ]}
-          >
-            <Icon name={getStatusIcon(item.status)} size={12} color="#fff" />
-            <Text style={styles.statusText}>{item.status}</Text>
-          </View>
+  const renderAttendanceCard = ({ item }) => (
+    <TouchableOpacity style={styles.attendanceCard} onPress={() => handleViewDetails(item)} activeOpacity={0.7}>
+      <View style={styles.cardHeader}>
+        <Text style={styles.attendanceDate}>{formatDate(item.date)}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+          <Icon name={getStatusIcon(item.status)} size={12} color="#fff" />
+          <Text style={styles.statusText}>{item.status}</Text>
         </View>
-
-        <View style={styles.cardBody}>
+      </View>
+      <View style={styles.cardBody}>
+        <View style={styles.infoRow}>
+          <Icon name="book" size={14} color="#666" style={styles.icon} />
+          <Text style={styles.infoText}>{item.subject}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Icon name="clock-o" size={14} color="#666" style={styles.icon} />
+          <Text style={styles.infoText}>{item.timeIn} {item.timeOut ? `- ${item.timeOut}` : ''}</Text>
+        </View>
+        {item.remarks && (
           <View style={styles.infoRow}>
-            <Icon name="book" size={14} color="#666" style={styles.icon} />
-            <Text style={styles.infoText}>{item.subject}</Text>
+            <Icon name="comment" size={14} color="#666" style={styles.icon} />
+            <Text style={styles.infoText}>{item.remarks}</Text>
           </View>
+        )}
+      </View>
+      <View style={styles.cardActions}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.viewButton]}
+          onPress={() => handleViewDetails(item)}
+        >
+          <Icon name="eye" size={14} color="#fff" style={styles.buttonIcon} />
+          <Text style={styles.buttonText}>View</Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
 
-          {item.timeIn && (
-            <View style={styles.infoRow}>
-              <Icon name="clock-o" size={14} color="#666" style={styles.icon} />
-              <Text style={styles.infoText}>
-                {item.timeIn} - {item.timeOut}
-              </Text>
-            </View>
-          )}
-
-          {item.remarks && (
-            <View style={styles.infoRow}>
-              <Icon name="comment" size={14} color="#666" style={styles.icon} />
-              <Text style={styles.infoText}>{item.remarks}</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.cardActions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.viewButton]}
-            onPress={() => handleViewDetails(item)}
-          >
-            <Icon name="eye" size={14} color="#fff" style={styles.buttonIcon} />
-            <Text style={styles.buttonText}>View</Text>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  // Render filter button
   const renderFilterButton = (filter, type) => {
     const isActive =
       (type === 'subject' && selectedSubject === filter) ||
@@ -546,20 +282,13 @@ const AttendanceScreen = () => {
           else if (type === 'status') setSelectedStatus(filter);
         }}
       >
-        <Text
-          style={[
-            styles.filterButtonText,
-            isActive && styles.filterButtonTextActive,
-          ]}
-        >
-          {filter}
-        </Text>
+        <Text style={[styles.filterButtonText, isActive && styles.filterButtonTextActive]}>{filter}</Text>
       </TouchableOpacity>
     );
   };
 
-  return (
-    <View style={styles.container}>
+  const ListHeader = () => (
+    <View>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Attendance</Text>
@@ -570,30 +299,10 @@ const AttendanceScreen = () => {
       </View>
 
       {/* Period Filter Buttons */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.periodFilterContainer}
-        contentContainerStyle={styles.periodFilterContent}
-      >
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.periodFilterContainer} contentContainerStyle={styles.periodFilterContent}>
         {['Weekly', 'Monthly', 'Yearly'].map(period => (
-          <TouchableOpacity
-            key={period}
-            style={[
-              styles.periodFilterButton,
-              selectedPeriod === period && styles.periodFilterButtonActive,
-            ]}
-            onPress={() => setSelectedPeriod(period)}
-          >
-            <Text
-              style={[
-                styles.periodFilterButtonText,
-                selectedPeriod === period &&
-                  styles.periodFilterButtonTextActive,
-              ]}
-            >
-              {period}
-            </Text>
+          <TouchableOpacity key={period} style={[styles.periodFilterButton, selectedPeriod === period && styles.periodFilterButtonActive]} onPress={() => setSelectedPeriod(period)}>
+            <Text style={[styles.periodFilterButtonText, selectedPeriod === period && styles.periodFilterButtonTextActive]}>{period}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -603,54 +312,41 @@ const AttendanceScreen = () => {
         <Text style={styles.periodCardsTitle}>Attendance Summary</Text>
         <View style={styles.periodCardsRow}>
           {['Weekly', 'Monthly', 'Yearly'].map(period => {
+            if (period !== selectedPeriod) return null;
             const data = getPeriodAttendance(period);
             return (
               <View key={period} style={styles.periodCard}>
                 <View style={styles.periodCardHeader}>
                   <Text style={styles.periodCardTitle}>{period}</Text>
                   <View style={styles.periodCardPercentageContainer}>
-                    <Text style={styles.periodCardPercentage}>
-                      {data.percentage}%
-                    </Text>
+                    <Text style={styles.periodCardPercentage}>{data.percentage}%</Text>
                   </View>
                 </View>
-
                 <View style={styles.periodCardStats}>
                   <View style={styles.statItem}>
                     <View style={styles.statDotContainer}>
-                      <View
-                        style={[styles.statDot, { backgroundColor: '#4CAF50' }]}
-                      />
+                      <View style={[styles.statDot, { backgroundColor: '#4CAF50' }]} />
                       <Text style={styles.statLabel}>Present</Text>
                     </View>
                     <Text style={styles.statValue}>{data.present}</Text>
                   </View>
-
                   <View style={styles.statItem}>
                     <View style={styles.statDotContainer}>
-                      <View
-                        style={[styles.statDot, { backgroundColor: '#F44336' }]}
-                      />
+                      <View style={[styles.statDot, { backgroundColor: '#F44336' }]} />
                       <Text style={styles.statLabel}>Absent</Text>
                     </View>
                     <Text style={styles.statValue}>{data.absent}</Text>
                   </View>
-
                   <View style={styles.statItem}>
                     <View style={styles.statDotContainer}>
-                      <View
-                        style={[styles.statDot, { backgroundColor: '#FF9800' }]}
-                      />
+                      <View style={[styles.statDot, { backgroundColor: '#FF9800' }]} />
                       <Text style={styles.statLabel}>Late</Text>
                     </View>
                     <Text style={styles.statValue}>{data.late}</Text>
                   </View>
                 </View>
-
                 <View style={styles.periodCardFooter}>
-                  <Text style={styles.periodCardTotal}>
-                    Total: {data.total} days
-                  </Text>
+                  <Text style={styles.periodCardTotal}>Total: {data.total} days</Text>
                 </View>
               </View>
             );
@@ -661,88 +357,64 @@ const AttendanceScreen = () => {
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Icon name="search" size={18} color="#666" style={styles.searchIcon} />
-        <Text
-          style={styles.searchInput}
-          placeholder="Search by date or subject..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor="#999"
-        />
+        <Text style={styles.searchInput} placeholder="Search by date or subject..." value={searchQuery} onChangeText={setSearchQuery} placeholderTextColor="#999" />
       </View>
 
-      {/* Date Range Filter Buttons */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterContainer}
-        contentContainerStyle={styles.filterContent}
-      >
-        {['This Month', 'Last Month', 'All Time'].map(filter =>
-          renderFilterButton(filter, 'dateRange'),
-        )}
+      {/* Filters */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterContainer} contentContainerStyle={styles.filterContent}>
+        {['This Month', 'Last Month', 'All Time'].map(filter => renderFilterButton(filter, 'dateRange'))}
       </ScrollView>
-
-      {/* Subject Filter Buttons */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterContainer}
-        contentContainerStyle={styles.filterContent}
-      >
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterContainer} contentContainerStyle={styles.filterContent}>
         {subjects.map(filter => renderFilterButton(filter, 'subject'))}
       </ScrollView>
-
-      {/* Status Filter Buttons */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterContainer}
-        contentContainerStyle={styles.filterContent}
-      >
-        {['All', 'Present', 'Absent', 'Late', 'Excused'].map(filter =>
-          renderFilterButton(filter, 'status'),
-        )}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterContainer} contentContainerStyle={styles.filterContent}>
+        {['All', 'Present', 'Absent', 'Late', 'Excused'].map(filter => renderFilterButton(filter, 'status'))}
       </ScrollView>
 
-      {/* Subject-wise Attendance Summary */}
+      {/* Subject-wise Summary */}
       <View style={styles.summaryContainer}>
         <Text style={styles.summaryTitle}>Subject-wise Attendance</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {subjects.slice(1).map(subject => (
             <View key={subject} style={styles.subjectSummary}>
               <Text style={styles.subjectName}>{subject}</Text>
-              <Text style={styles.subjectPercentage}>
-                {getSubjectAttendance(subject)}%
-              </Text>
+              <Text style={styles.subjectPercentage}>{getSubjectAttendance(subject)}%</Text>
             </View>
           ))}
         </ScrollView>
       </View>
+    </View>
+  );
 
-      {/* Attendance List */}
+  return (
+    <View style={styles.container}>
+      {/* FlatList with ListHeaderComponent for scrolling */}
       <FlatList
         data={filteredAttendance}
         renderItem={renderAttendanceCard}
         keyExtractor={item => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={ListHeader}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Icon name="calendar" size={60} color="#ccc" />
-            <Text style={styles.emptyText}>No attendance records found</Text>
-            <Text style={styles.emptySubtext}>
-              {selectedSubject === 'All' &&
-              selectedDateRange === 'All Time' &&
-              selectedStatus === 'All' &&
-              !searchQuery
-                ? 'Attendance records will appear here'
-                : 'Try adjusting your filters'}
-            </Text>
+            {loading ? (
+              <ActivityIndicator size="large" color="#FF751F" />
+            ) : (
+              <>
+                <Icon name="calendar" size={60} color="#ccc" />
+                <Text style={styles.emptyText}>{error ? error : 'No attendance records found'}</Text>
+                {error && (
+                  <TouchableOpacity style={styles.retryButton} onPress={fetchAttendance}>
+                    <Text style={styles.retryButtonText}>Retry</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
           </View>
         }
       />
 
-      {/* Attendance Detail Modal */}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -804,30 +476,31 @@ const AttendanceScreen = () => {
                         </View>
                       </View>
                       {selectedRecord.timeIn && (
-                        <>
-                          <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>Time In:</Text>
-                            <Text style={styles.detailValue}>
-                              {selectedRecord.timeIn}
-                            </Text>
-                          </View>
-                          <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>Time Out:</Text>
-                            <Text style={styles.detailValue}>
-                              {selectedRecord.timeOut}
-                            </Text>
-                          </View>
-                        </>
-                      )}
-                      {selectedRecord.remarks && (
                         <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>Remarks:</Text>
+                          <Text style={styles.detailLabel}>Time In:</Text>
                           <Text style={styles.detailValue}>
-                            {selectedRecord.remarks}
+                            {selectedRecord.timeIn}
+                          </Text>
+                        </View>
+                      )}
+                      {selectedRecord.timeOut && (
+                        <View style={styles.detailRow}>
+                          <Text style={styles.detailLabel}>Time Out:</Text>
+                          <Text style={styles.detailValue}>
+                            {selectedRecord.timeOut}
                           </Text>
                         </View>
                       )}
                     </View>
+
+                    {selectedRecord.remarks && (
+                      <View style={styles.modalSection}>
+                        <Text style={styles.sectionTitle}>Remarks</Text>
+                        <Text style={styles.remarksText}>
+                          {selectedRecord.remarks}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </>
               )}
@@ -842,106 +515,205 @@ const AttendanceScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
+    fontSize: 16,
   },
   header: {
-    backgroundColor: '#2196F3',
     padding: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
+    color: '#333',
     marginBottom: 10,
   },
   attendanceSummary: {
-    alignItems: 'center',
-    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'baseline',
   },
   attendancePercentage: {
-    fontSize: 36,
+    fontSize: 48,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#FF751F',
+    marginRight: 10,
   },
   attendanceLabel: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+  },
+  periodFilterContainer: {
+    backgroundColor: '#fff',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  periodFilterContent: {
+    paddingHorizontal: 15,
+  },
+  periodFilterButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginRight: 10,
+    backgroundColor: '#f5f5f5',
+  },
+  periodFilterButtonActive: {
+    backgroundColor: '#FF751F',
+  },
+  periodFilterButtonText: {
+    color: '#666',
+    fontWeight: '600',
     fontSize: 14,
+  },
+  periodFilterButtonTextActive: {
     color: '#fff',
-    marginTop: 5,
+  },
+  periodCardsContainer: {
+    padding: 20,
+  },
+  periodCardsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+  },
+  periodCardsRow: {
+  },
+  periodCard: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 15,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  periodCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  periodCardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  periodCardPercentageContainer: {
+    backgroundColor: '#FFF0E0',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  periodCardPercentage: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FF751F',
+  },
+  periodCardStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statDotContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  statDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  periodCardFooter: {
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    paddingTop: 10,
+    alignItems: 'flex-end',
+  },
+  periodCardTotal: {
+    fontSize: 12,
+    color: '#999',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    margin: 15,
+    marginHorizontal: 20,
+    marginBottom: 15,
     paddingHorizontal: 15,
     borderRadius: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    height: 45,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   searchIcon: {
     marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 14,
     color: '#333',
-    paddingVertical: 12,
   },
   filterContainer: {
-    paddingLeft: 15,
-    marginBottom: 10,
+    marginBottom: 15,
   },
   filterContent: {
-    paddingRight: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   filterButton: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
+    paddingVertical: 8,
     borderRadius: 20,
-    marginRight: 8,
+    backgroundColor: '#fff',
+    marginRight: 10,
     borderWidth: 1,
-    borderColor: '#ddd',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 90,
-    maxWidth: 150,
+    borderColor: '#eee',
   },
   filterButtonActive: {
-    backgroundColor: '#2196F3',
-    borderColor: '#2196F3',
+    backgroundColor: '#333',
+    borderColor: '#333',
   },
   filterButtonText: {
     fontSize: 14,
-    fontWeight: '600',
     color: '#666',
-    textAlign: 'center',
-    flexShrink: 0,
-    flexWrap: 'wrap',
-    numberOfLines: 2,
   },
   filterButtonTextActive: {
     color: '#fff',
+    fontWeight: 'bold',
   },
   summaryContainer: {
-    backgroundColor: '#fff',
-    marginHorizontal: 15,
-    marginBottom: 10,
-    padding: 15,
-    borderRadius: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    marginHorizontal: 20,
+    marginBottom: 20,
   },
   summaryTitle: {
     fontSize: 16,
@@ -950,44 +722,47 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   subjectSummary: {
-    backgroundColor: '#f5f5f5',
-    padding: 10,
-    borderRadius: 8,
-    marginRight: 8,
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  subjectName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 4,
-  },
-  subjectPercentage: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2196F3',
-  },
-  listContent: {
-    padding: 15,
-    paddingBottom: 30,
-  },
-  attendanceCard: {
     backgroundColor: '#fff',
+    padding: 15,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    marginRight: 10,
+    width: 120,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
+  subjectName: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  subjectPercentage: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  attendanceCard: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 15,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 15,
   },
   attendanceDate: {
     fontSize: 16,
@@ -997,111 +772,113 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 6,
-    minWidth: 70,
-    gap: 4,
+    borderRadius: 12,
   },
   statusText: {
+    color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#fff',
+    marginLeft: 5,
   },
   cardBody: {
-    marginBottom: 12,
+    marginBottom: 15,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   icon: {
-    marginRight: 8,
-    width: 16,
-    textAlign: 'center',
+    width: 20,
+    marginRight: 5,
   },
   infoText: {
     fontSize: 14,
     color: '#666',
-    flex: 1,
   },
   cardActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    paddingTop: 10,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    flex: 1,
-    marginRight: 8,
+    paddingVertical: 6,
+    borderRadius: 15,
+    marginLeft: 10,
   },
   viewButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: '#FF751F',
   },
   buttonIcon: {
-    marginRight: 6,
+    marginRight: 5,
   },
   buttonText: {
-    fontSize: 13,
-    fontWeight: 'bold',
     color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   emptyContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
+    paddingTop: 50,
   },
   emptyText: {
     fontSize: 18,
-    color: '#999',
-    marginTop: 16,
-    fontWeight: '600',
+    color: '#666',
+    marginTop: 15,
+    fontWeight: 'bold',
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#bbb',
-    marginTop: 8,
+    color: '#999',
+    marginTop: 5,
     textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 15,
+    backgroundColor: '#FF751F',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   modalContainer: {
     flex: 1,
-    justifyContent: 'flex-end',
     backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '85%',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    maxHeight: '80%',
     padding: 20,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    flex: 1,
-    marginRight: 10,
   },
   closeButton: {
-    padding: 8,
+    padding: 5,
   },
   modalBody: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   modalSection: {
     marginBottom: 20,
@@ -1110,120 +887,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-    paddingVertical: 4,
+    marginBottom: 10,
+    paddingVertical: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f5f5f5',
   },
   detailLabel: {
     fontSize: 14,
-    fontWeight: '600',
     color: '#666',
   },
   detailValue: {
     fontSize: 14,
     color: '#333',
-    flex: 1,
-    textAlign: 'right',
+    fontWeight: '500',
   },
-  periodCardsContainer: {
-    backgroundColor: '#fff',
-    marginHorizontal: 15,
-    marginBottom: 15,
-    padding: 15,
-    borderRadius: 12,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-  },
-  periodCardsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  periodCardsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  periodCard: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  periodCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  periodCardTitle: {
+  remarksText: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  periodCardPercentageContainer: {
-    backgroundColor: '#2196F3',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  periodCardPercentage: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  periodCardStats: {
-    gap: 8,
-  },
-  statItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  statDotContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  statDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  statLabel: {
-    fontSize: 12,
     color: '#666',
-    fontWeight: '500',
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  periodCardFooter: {
-    marginTop: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-  },
-  periodCardTotal: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'center',
-    fontWeight: '500',
+    lineHeight: 20,
+    backgroundColor: '#f9f9f9',
+    padding: 10,
+    borderRadius: 10,
   },
 });
 

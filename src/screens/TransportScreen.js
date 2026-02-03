@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,30 +7,81 @@ import {
   TouchableOpacity,
   Modal,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/FontAwesome';
-
-// Sample transport data
-const transportData = [
-  {
-    id: '1',
-    routeName: 'Main Campus Route',
-    vehicleType: 'Bus',
-    vehicleNumber: 'MH-02-AB-1234',
-    driverName: 'Mr. Rajesh Kumar',
-    driverContact: '+91-9876543210',
-    pickupTime: '07:30 AM',
-    dropTime: '05:30 PM',
-    stops: ['Main Gate', 'Hostel Block A', 'Academic Block', 'Library'],
-    status: 'Active',
-    capacity: 45,
-    currentOccupancy: 32,
-  },
-];
+import { API_BASE_URL } from '../config/api';
+import { request } from '../services/api';
 
 const TransportScreen = () => {
+  const [transportData, setTransportData] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedTransport, setSelectedTransport] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+
+  useEffect(() => {
+    fetchTransportDetails();
+  }, []);
+
+  const fetchTransportDetails = async () => {
+    try {
+      const sessionStr = await AsyncStorage.getItem('auth_session');
+      if (!sessionStr) {
+        setLoading(false);
+        return;
+      }
+
+      const session = JSON.parse(sessionStr);
+      const { user, token } = session;
+
+      if (!user || !user.userid) {
+        console.error('User ID not found in session');
+        setLoading(false);
+        return;
+      }
+
+      const response = await request(`/student-transport/${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      console.log('📦 [TransportScreen] Response:', response);
+
+      if (response.success && response.data) {
+        // Map API response to UI format
+        const apiData = response.data;
+        const mappedData = {
+          id: apiData.assignment_id,
+          routeName: apiData.route_name,
+          vehicleType: apiData.vehicle_type || 'Bus',
+          vehicleNumber: apiData.vehicle_number,
+          driverName: apiData.driver_name,
+          driverContact: apiData.driver_phone,
+          pickupTime: apiData.stops?.find(s => s.stop_name === apiData.pickup_point)?.pickup_time || 'N/A',
+          dropTime: apiData.stops?.find(s => s.stop_name === apiData.pickup_point)?.drop_time || 'N/A',
+          stops: apiData.stops ? apiData.stops.map(s => s.stop_name) : [],
+          status: 'Active',
+          capacity: 40, // Default or fetch if available
+          currentOccupancy: 20, // Default or fetch if available
+          pickupPoint: apiData.pickup_point
+        };
+
+        setTransportData([mappedData]);
+      } else {
+        console.log('No transport data found:', response.error);
+        setTransportData([]);
+        // Optional: setError(response.error) if there was a state for it, but currently it just sets empty data
+      }
+    } catch (error) {
+      console.error('Error fetching transport details:', error);
+      // Fallback for unexpected errors
+      setTransportData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Get status color
   const getStatusColor = status => {
@@ -156,23 +207,29 @@ const TransportScreen = () => {
         <Text style={styles.headerTitle}>Transport Details</Text>
       </View>
 
-      {/* Transport List */}
-      <FlatList
-        data={transportData}
-        renderItem={renderTransportCard}
-        keyExtractor={item => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Icon name="bus" size={60} color="#ccc" />
-            <Text style={styles.emptyText}>No transport details found</Text>
-            <Text style={styles.emptySubtext}>
-              Transport information will appear here
-            </Text>
-          </View>
-        }
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading transport details...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={transportData}
+          renderItem={renderTransportCard}
+          keyExtractor={item => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Icon name="bus" size={60} color="#ccc" />
+              <Text style={styles.emptyText}>No transport details found</Text>
+              <Text style={styles.emptySubtext}>
+                Transport information will appear here
+              </Text>
+            </View>
+          }
+        />
+      )}
 
       {/* Transport Detail Modal */}
       <Modal
@@ -339,7 +396,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#1976D2',
+    backgroundColor: colors.primary,
     padding: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
@@ -565,6 +622,17 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 8,
     textAlign: 'center',
+    textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
+    fontSize: 16,
   },
 });
 

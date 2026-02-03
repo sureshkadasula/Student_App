@@ -285,7 +285,7 @@ const LibraryScreen = () => {
       >
         <View style={styles.cardHeader}>
           <View style={styles.bookIconContainer}>
-            <Icon name="book" size={24} color="#5D4037" />
+            <Icon name="book" size={24} color={colors.primary} />
           </View>
           <View style={styles.cardTitleContainer}>
             <Text style={styles.bookTitle}>{item.title}</Text>
@@ -428,7 +428,7 @@ const LibraryScreen = () => {
         style={[
           styles.filterButtonText,
           selectedAvailability === availability &&
-            styles.filterButtonTextActive,
+          styles.filterButtonTextActive,
         ]}
       >
         {availability}
@@ -488,8 +488,8 @@ const LibraryScreen = () => {
             <Text style={styles.emptyText}>No books found</Text>
             <Text style={styles.emptySubtext}>
               {selectedCategory === 'All' &&
-              selectedAvailability === 'All' &&
-              !searchQuery
+                selectedAvailability === 'All' &&
+                !searchQuery
                 ? 'Books will appear here'
                 : 'Try adjusting your filters'}
             </Text>
@@ -735,13 +735,17 @@ const LibraryScreen = () => {
   );
 };
 
+import { colors } from '../theme/colors';
+
+// ... (component code)
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#5D4037',
+    backgroundColor: colors.primary,
     padding: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
@@ -797,8 +801,8 @@ const styles = StyleSheet.create({
     maxWidth: 150,
   },
   filterButtonActive: {
-    backgroundColor: '#5D4037',
-    borderColor: '#5D4037',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   filterButtonText: {
     fontSize: 14,

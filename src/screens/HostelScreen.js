@@ -7,33 +7,82 @@ import {
   TouchableOpacity,
   Modal,
   FlatList,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/FontAwesome';
-
-// Sample hostel data
-const hostelData = [
-  {
-    id: '1',
-    studentName: 'Rahul Sharma',
-    blockName: 'Block A',
-    floorName: 'Ground Floor',
-    floorNumber: 0,
-    roomNumber: 'A-101',
-    sharingType: 2,
-    sharingTypeLabel: '2 Sharing',
-    wing: 'North Wing',
-    wardenName: 'Mr. Kapoor',
-    wardenContact: '+91-9876543210',
-    amenities: ['Attached Bathroom', 'Study Table', 'Wardrobe', 'AC'],
-    status: 'Active',
-    checkInDate: '2024-01-15',
-    checkOutDate: '2024-06-30',
-  },
-];
+import { API_BASE_URL } from '../config/api';
+import { request } from '../services/api';
 
 const HostelScreen = () => {
+  const [hostelData, setHostelData] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedHostel, setSelectedHostel] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+
+  useEffect(() => {
+    fetchHostelDetails();
+  }, []);
+
+  const fetchHostelDetails = async () => {
+    try {
+      const sessionStr = await AsyncStorage.getItem('auth_session');
+      if (!sessionStr) {
+        setLoading(false);
+        return;
+      }
+
+      const session = JSON.parse(sessionStr);
+      const { user, token } = session;
+
+      if (!user || !user.userid) {
+        console.error('User ID not found in session');
+        setLoading(false);
+        return;
+      }
+
+      const response = await request(`/student-hostel/${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      if (response.success && response.data) {
+        // Map API response to UI format
+        const apiData = response.data;
+        const mappedData = {
+          id: apiData.allocation_id,
+          studentName: user.name, // Display logged-in user's name
+          blockName: apiData.block_name,
+          floorName: `Floor ${apiData.floor_number}`,
+          floorNumber: apiData.floor_number,
+          roomNumber: apiData.room_number,
+          sharingType: 2, // Default or fetch if available
+          sharingTypeLabel: `${apiData.capacity} Sharing`, // Infer from capacity
+          wing: apiData.hostel_name, // Using hostel name as wing/building identifier
+          wardenName: apiData.warden_name,
+          wardenContact: apiData.warden_contact,
+          amenities: ['Bed', 'Study Table', 'Cupboard', apiData.mess_facility ? 'Mess' : null].filter(Boolean),
+          status: 'Active',
+          checkInDate: new Date(apiData.allocation_date).toISOString().split('T')[0],
+          checkOutDate: 'N/A', // Not in current response
+        };
+
+        setHostelData([mappedData]);
+      } else {
+        console.log('No hostel data found:', response.error);
+        setHostelData([]);
+        // Optional: setError(response.error);
+      }
+    } catch (error) {
+      console.error('Error fetching hostel details:', error);
+      // Alert.alert('Error', 'Failed to fetch hostel details');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Get sharing type color
   const getSharingTypeColor = sharingType => {
@@ -166,23 +215,29 @@ const HostelScreen = () => {
         <Text style={styles.headerTitle}>Hostel Details</Text>
       </View>
 
-      {/* Hostel List */}
-      <FlatList
-        data={hostelData}
-        renderItem={renderHostelCard}
-        keyExtractor={item => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Icon name="building" size={60} color="#ccc" />
-            <Text style={styles.emptyText}>No hostel details found</Text>
-            <Text style={styles.emptySubtext}>
-              Hostel information will appear here
-            </Text>
-          </View>
-        }
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading hostel details...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={hostelData}
+          renderItem={renderHostelCard}
+          keyExtractor={item => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Icon name="building" size={60} color="#ccc" />
+              <Text style={styles.emptyText}>No hostel details found</Text>
+              <Text style={styles.emptySubtext}>
+                Hostel information will appear here
+              </Text>
+            </View>
+          }
+        />
+      )}
 
       {/* Hostel Detail Modal */}
       <Modal
@@ -366,7 +421,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#795548',
+    backgroundColor: colors.primary,
     padding: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
@@ -587,6 +642,17 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 8,
     textAlign: 'center',
+    textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
+    fontSize: 16,
   },
 });
 

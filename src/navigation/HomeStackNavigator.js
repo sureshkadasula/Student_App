@@ -16,6 +16,7 @@ import TransportScreen from '../screens/TransportScreen';
 import HostelScreen from '../screens/HostelScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
 import RequestCertificateManagementScreen from '../screens/RequestCertificateManagementScreen';
+import CustomHeader from '../components/CustomHeader';
 
 const Stack = createNativeStackNavigator();
 
@@ -25,15 +26,12 @@ const HomeStackNavigator = () => {
       initialRouteName="HomeMain"
       screenOptions={{
         headerShown: true,
-        headerTransparent: true,
-        headerTitle: '',
-        headerStyle: { backgroundColor: 'transparent' },
+        header: (props) => <CustomHeader {...props} />,
       }}
     >
       <Stack.Screen
         name="HomeMain"
         component={HomeScreen}
-        options={{ headerShown: false }}
       />
       <Stack.Screen name="Classes" component={ClassesScreen} />
       <Stack.Screen name="Mark Sheets" component={MarkSheetsScreen} />

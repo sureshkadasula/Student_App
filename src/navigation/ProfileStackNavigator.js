@@ -4,7 +4,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
-const ProfileStackNavigator = () => {
+const ProfileStackNavigator = ({ setIsLoggedIn }) => {
   return (
     <Stack.Navigator
       initialRouteName="Profile"
@@ -15,7 +15,9 @@ const ProfileStackNavigator = () => {
         headerStyle: { backgroundColor: 'transparent' },
       }}
     >
-      <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="Profile">
+        {props => <ProfileScreen {...props} setIsLoggedIn={setIsLoggedIn} />}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 };

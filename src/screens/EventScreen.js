@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,156 +7,75 @@ import {
   TouchableOpacity,
   FlatList,
   Modal,
-  Image,
+  ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/FontAwesome';
-
-// Sample events data
-const eventsData = [
-  {
-    id: '1',
-    title: 'Annual Cultural Fest 2024',
-    type: 'Cultural',
-    category: 'Annual',
-    date: '2024-02-15',
-    time: '10:00 AM - 8:00 PM',
-    venue: 'College Auditorium',
-    description:
-      'Join us for our grand annual cultural fest featuring dance performances, music concerts, drama, and food stalls. This is the biggest event of the year!',
-    status: 'Upcoming',
-    image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400',
-    highlights: [
-      'Dance Competition',
-      'Music Concert',
-      'Food Festival',
-      'Art Exhibition',
-    ],
-  },
-  {
-    id: '2',
-    title: 'Flash Mob - Independence Day',
-    type: 'Flash Mob',
-    category: 'Special',
-    date: '2024-01-26',
-    time: '9:00 AM',
-    venue: 'College Ground',
-    description:
-      'A surprise flash mob performance to celebrate Independence Day. All students are invited to participate or watch this exciting event!',
-    status: 'Upcoming',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
-    highlights: ['Patriotic Dance', 'Group Performance', 'Surprise Element'],
-  },
-  {
-    id: '3',
-    title: 'Tech Fest 2024',
-    type: 'Fest',
-    category: 'Technical',
-    date: '2024-03-10',
-    time: '9:00 AM - 6:00 PM',
-    venue: 'Computer Science Block',
-    description:
-      'Annual technical fest featuring coding competitions, robotics workshops, hackathons, and tech exhibitions. Prizes worth ₹50,000 to be won!',
-    status: 'Upcoming',
-    image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400',
-    highlights: [
-      'Hackathon',
-      'Robotics Workshop',
-      'Coding Contest',
-      'Tech Exhibition',
-    ],
-  },
-  {
-    id: '4',
-    title: 'Freshers Party 2024',
-    type: 'Cultural',
-    category: 'Social',
-    date: '2024-01-20',
-    time: '6:00 PM - 10:00 PM',
-    venue: 'College Lawn',
-    description:
-      'Welcome party for new students. Fun games, music, dance, and dinner. A great opportunity to make new friends!',
-    status: 'Live',
-    image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=400',
-    highlights: ['Welcome Speech', 'Ice Breaker Games', 'Dinner', 'Music'],
-  },
-  {
-    id: '5',
-    title: 'Annual Sports Meet',
-    type: 'Annual',
-    category: 'Sports',
-    date: '2024-02-28',
-    time: '8:00 AM - 5:00 PM',
-    venue: 'Sports Complex',
-    description:
-      'Annual sports meet with track and field events, team sports, and fun activities. Prizes for winners and participation certificates!',
-    status: 'Upcoming',
-    image: 'https://images.unsplash.com/photo-1461896836934- voices-3?w=400',
-    highlights: ['Track Events', 'Team Sports', 'Fun Activities', 'Prizes'],
-  },
-  {
-    id: '6',
-    title: 'Music Night',
-    type: 'Cultural',
-    category: 'Entertainment',
-    date: '2024-01-25',
-    time: '7:00 PM - 11:00 PM',
-    venue: 'Open Air Theatre',
-    description:
-      'A night of live music performances by student bands and special guests. Enjoy rock, pop, and classical music!',
-    status: 'Completed',
-    image: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400',
-    highlights: ['Live Bands', 'Student Performances', 'Special Guests'],
-  },
-  {
-    id: '7',
-    title: 'Workshop on AI & ML',
-    type: 'Workshop',
-    category: 'Educational',
-    date: '2024-03-05',
-    time: '2:00 PM - 5:00 PM',
-    venue: 'Seminar Hall',
-    description:
-      'Hands-on workshop on Artificial Intelligence and Machine Learning. Learn from industry experts and work on real projects!',
-    status: 'Upcoming',
-    image: 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=400',
-    highlights: ['Expert Speakers', 'Hands-on Projects', 'Certificate'],
-  },
-  {
-    id: '8',
-    title: 'Farewell Party',
-    type: 'Cultural',
-    category: 'Social',
-    date: '2024-04-15',
-    time: '6:00 PM - 11:00 PM',
-    venue: 'College Lawn',
-    description:
-      'Farewell party for graduating students. A memorable evening with performances, speeches, and dinner!',
-    status: 'Upcoming',
-    image: 'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?w=400',
-    highlights: ['Performances', 'Speeches', 'Dinner', 'Memories'],
-  },
-];
+import { API_BASE_URL } from '../config/api';
+import { request } from '../services/api';
 
 const EventScreen = () => {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
 
-  // Get unique event types for color coding
-  const getEventColor = type => {
-    switch (type) {
-      case 'Cultural':
-        return '#E91E63'; // Pink
-      case 'Annual':
-        return '#FF9800'; // Orange
-      case 'Fest':
-        return '#9C27B0'; // Purple
-      case 'Flash Mob':
-        return '#00BCD4'; // Cyan
-      case 'Workshop':
-        return '#4CAF50'; // Green
-      default:
-        return '#757575'; // Gray
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Retrieve token from storage
+      const sessionStr = await AsyncStorage.getItem('auth_session');
+      let token = null;
+      if (sessionStr) {
+        const session = JSON.parse(sessionStr);
+        token = session.token;
+      }
+
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await request('/events', {
+        method: 'GET',
+        headers: headers,
+      });
+
+      console.log('📦 [EventScreen] Response Status:', response.status);
+
+      if (response.success) {
+        setEvents(response.data);
+      } else {
+        // Handle error gracefully
+        console.warn('⚠️ [EventScreen] Fetch failed:', response.error);
+        setError(response.error || 'Failed to fetch events');
+      }
+    } catch (err) {
+      console.error('❌ [EventScreen] Error fetching events:', err);
+      setError('Unexpected error occurred.');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // Get unique event types for color coding (using category as type)
+  const getEventColor = type => {
+    const safeType = (type || '').toLowerCase();
+    if (safeType.includes('cultural')) return '#E91E63'; // Pink
+    if (safeType.includes('academic')) return '#2196F3'; // Blue
+    if (safeType.includes('sport')) return '#FF9800'; // Orange
+    if (safeType.includes('fest')) return '#9C27B0'; // Purple
+    if (safeType.includes('workshop')) return '#4CAF50'; // Green
+    return '#FF751F'; // Default to Brand Orange for others
   };
 
   // Get status color
@@ -165,7 +84,7 @@ const EventScreen = () => {
       case 'Upcoming':
         return '#4CAF50'; // Green
       case 'Live':
-        return '#FF9800'; // Orange
+        return '#FF751F'; // Brand Orange
       case 'Completed':
         return '#757575'; // Gray
       default:
@@ -187,6 +106,27 @@ const EventScreen = () => {
     }
   };
 
+  // Helper to format date
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  // Helper to format time
+  const formatTime = (timeString) => {
+    if (!timeString) return '';
+    const [hours, minutes] = timeString.split(':');
+    const h = parseInt(hours, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${minutes} ${ampm}`;
+  }
+
   // Handle view event details
   const handleViewDetails = event => {
     setSelectedEvent(event);
@@ -206,10 +146,10 @@ const EventScreen = () => {
             <View
               style={[
                 styles.eventTypeDot,
-                { backgroundColor: getEventColor(item.type) },
+                { backgroundColor: getEventColor(item.category) },
               ]}
             />
-            <Text style={styles.eventType}>{item.type}</Text>
+            <Text style={styles.eventType}>{item.category || 'Event'}</Text>
           </View>
           <View
             style={[
@@ -227,37 +167,32 @@ const EventScreen = () => {
         <View style={styles.cardBody}>
           <View style={styles.infoRow}>
             <Icon name="calendar" size={14} color="#666" style={styles.icon} />
-            <Text style={styles.infoText}>{item.date}</Text>
+            <Text style={styles.infoText}>{formatDate(item.event_date)}</Text>
           </View>
 
           <View style={styles.infoRow}>
             <Icon name="clock-o" size={14} color="#666" style={styles.icon} />
-            <Text style={styles.infoText}>{item.time}</Text>
+            <Text style={styles.infoText}>
+              {formatTime(item.start_time)}
+              {item.end_time ? ` - ${formatTime(item.end_time)}` : ''}
+            </Text>
           </View>
 
-          <View style={styles.infoRow}>
-            <Icon
-              name="map-marker"
-              size={14}
-              color="#666"
-              style={styles.icon}
-            />
-            <Text style={styles.infoText}>{item.venue}</Text>
-          </View>
+          {item.venue && (
+            <View style={styles.infoRow}>
+              <Icon
+                name="map-marker"
+                size={14}
+                color="#666"
+                style={styles.icon}
+              />
+              <Text style={styles.infoText}>{item.venue}</Text>
+            </View>
+          )}
 
           <Text style={styles.description} numberOfLines={2}>
             {item.description}
           </Text>
-
-          {item.highlights && item.highlights.length > 0 && (
-            <View style={styles.highlightsContainer}>
-              {item.highlights.slice(0, 2).map((highlight, index) => (
-                <View key={index} style={styles.highlightTag}>
-                  <Text style={styles.highlightText}>{highlight}</Text>
-                </View>
-              ))}
-            </View>
-          )}
         </View>
 
         <View style={styles.cardActions}>
@@ -273,25 +208,39 @@ const EventScreen = () => {
     );
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FF751F" />
+        <Text style={styles.loadingText}>Loading Events...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header - Using Brand Orange */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Events</Text>
       </View>
 
       {/* Events List */}
       <FlatList
-        data={eventsData}
+        data={events}
         renderItem={renderEventCard}
         keyExtractor={item => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Icon name="calendar" size={60} color="#ccc" />
-            <Text style={styles.emptyText}>No events found</Text>
-            <Text style={styles.emptySubtext}>Events will appear here</Text>
+            <Icon name={error ? "exclamation-circle" : "calendar"} size={60} color="#ccc" />
+            <Text style={styles.emptyText}>{error ? 'Failed to load events' : 'No events found'}</Text>
+            <Text style={styles.emptySubtext}>{error ? 'Please check your connection' : 'Events will appear here'}</Text>
+            {error && (
+              <TouchableOpacity style={styles.retryButton} onPress={fetchEvents}>
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            )}
           </View>
         }
       />
@@ -322,47 +271,55 @@ const EventScreen = () => {
                     <View style={styles.modalSection}>
                       <Text style={styles.sectionTitle}>Event Details</Text>
                       <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Type:</Text>
+                        <Text style={styles.detailLabel}>Category:</Text>
                         <View style={styles.detailValueContainer}>
                           <View
                             style={[
                               styles.eventTypeDot,
                               {
                                 backgroundColor: getEventColor(
-                                  selectedEvent.type,
+                                  selectedEvent.category,
                                 ),
                               },
                             ]}
                           />
                           <Text style={styles.detailValue}>
-                            {selectedEvent.type}
+                            {selectedEvent.category}
                           </Text>
                         </View>
                       </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Category:</Text>
-                        <Text style={styles.detailValue}>
-                          {selectedEvent.category}
-                        </Text>
-                      </View>
+
                       <View style={styles.detailRow}>
                         <Text style={styles.detailLabel}>Date:</Text>
                         <Text style={styles.detailValue}>
-                          {selectedEvent.date}
+                          {formatDate(selectedEvent.event_date)}
                         </Text>
                       </View>
+
                       <View style={styles.detailRow}>
                         <Text style={styles.detailLabel}>Time:</Text>
                         <Text style={styles.detailValue}>
-                          {selectedEvent.time}
+                          {formatTime(selectedEvent.start_time)}
+                          {selectedEvent.end_time ? ` - ${formatTime(selectedEvent.end_time)}` : ''}
                         </Text>
                       </View>
+
                       <View style={styles.detailRow}>
                         <Text style={styles.detailLabel}>Venue:</Text>
                         <Text style={styles.detailValue}>
                           {selectedEvent.venue}
                         </Text>
                       </View>
+
+                      {selectedEvent.organizer && (
+                        <View style={styles.detailRow}>
+                          <Text style={styles.detailLabel}>Organizer:</Text>
+                          <Text style={styles.detailValue}>
+                            {selectedEvent.organizer}
+                          </Text>
+                        </View>
+                      )}
+
                       <View style={styles.detailRow}>
                         <Text style={styles.detailLabel}>Status:</Text>
                         <View
@@ -394,24 +351,14 @@ const EventScreen = () => {
                       </Text>
                     </View>
 
-                    {selectedEvent.highlights &&
-                      selectedEvent.highlights.length > 0 && (
-                        <View style={styles.modalSection}>
-                          <Text style={styles.sectionTitle}>Highlights</Text>
-                          <View style={styles.highlightsList}>
-                            {selectedEvent.highlights.map(
-                              (highlight, index) => (
-                                <View key={index} style={styles.highlightItem}>
-                                  <Icon name="star" size={12} color="#FFC107" />
-                                  <Text style={styles.highlightItemText}>
-                                    {highlight}
-                                  </Text>
-                                </View>
-                              ),
-                            )}
-                          </View>
-                        </View>
-                      )}
+                    {selectedEvent.target_audience && (
+                      <View style={styles.modalSection}>
+                        <Text style={styles.sectionTitle}>Target Audience</Text>
+                        <Text style={styles.modalDescription}>
+                          {selectedEvent.target_audience}
+                        </Text>
+                      </View>
+                    )}
                   </View>
 
                   <View style={styles.modalActions}>
@@ -446,8 +393,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
+    fontSize: 16,
+  },
   header: {
-    backgroundColor: '#673AB7',
+    backgroundColor: '#FF751F', // Brand Orange
     padding: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
@@ -571,7 +529,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   viewButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: '#FF751F', // Brand Orange for Action Button
   },
   buttonIcon: {
     marginRight: 6,
@@ -597,6 +555,17 @@ const styles = StyleSheet.create({
     color: '#bbb',
     marginTop: 8,
     textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 20,
+    backgroundColor: '#FF751F', // Brand Orange
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   modalContainer: {
     flex: 1,

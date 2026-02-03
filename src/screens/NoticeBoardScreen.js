@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,119 +8,79 @@ import {
   FlatList,
   Modal,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/FontAwesome';
-
-// Sample notices data
-const noticesData = [
-  {
-    id: '1',
-    title: 'Final Exam Schedule Released',
-    description:
-      'The final examination schedule for the current academic year has been released. Please check the timetable carefully and prepare accordingly. All students must bring their ID cards and follow the examination guidelines.',
-    category: 'Academic',
-    date: '2024-01-20',
-    postedBy: 'Principal Office',
-    priority: 'high',
-    attachment: 'exam_schedule.pdf',
-  },
-  {
-    id: '2',
-    title: 'Winter Vacation Announcement',
-    description:
-      'School will remain closed for winter vacation from December 25th to January 5th. Classes will resume on January 6th. We wish all students and staff a wonderful holiday season.',
-    category: 'Holidays',
-    date: '2024-01-15',
-    postedBy: 'Administration',
-    priority: 'medium',
-    attachment: null,
-  },
-  {
-    id: '3',
-    title: 'Science Fair 2024',
-    description:
-      'Annual Science Fair will be held on February 15th in the school auditorium. Students from grades 6-12 are encouraged to participate. Registration deadline is January 30th. Prizes will be awarded for best projects.',
-    category: 'Events',
-    date: '2024-01-18',
-    postedBy: 'Science Department',
-    priority: 'high',
-    attachment: 'science_fair_brochure.pdf',
-  },
-  {
-    id: '4',
-    title: 'Library Book Return Reminder',
-    description:
-      'All students are reminded to return borrowed library books by January 25th. Failure to return books may result in fines. Please check your library account for any pending items.',
-    category: 'General',
-    date: '2024-01-19',
-    postedBy: 'Library Department',
-    priority: 'low',
-    attachment: null,
-  },
-  {
-    id: '5',
-    title: 'Sports Day Postponed',
-    description:
-      'Due to weather conditions, the annual Sports Day has been postponed to February 5th. All registered participants will be notified of the new schedule. Please keep your sports kits ready.',
-    category: 'Events',
-    date: '2024-01-21',
-    postedBy: 'Sports Department',
-    priority: 'medium',
-    attachment: null,
-  },
-  {
-    id: '6',
-    title: 'Parent-Teacher Meeting',
-    description:
-      'The next Parent-Teacher Meeting is scheduled for January 28th from 3:00 PM to 5:00 PM. Parents are requested to bring their ID cards. Meeting slots can be booked through the school portal.',
-    category: 'Academic',
-    date: '2024-01-22',
-    postedBy: 'Academic Office',
-    priority: 'high',
-    attachment: 'ptm_schedule.pdf',
-  },
-  {
-    id: '7',
-    title: 'New Computer Lab Equipment',
-    description:
-      'The school has installed new computers in the computer lab. Students will now have access to the latest software and hardware for their practical sessions. Lab hours remain the same.',
-    category: 'General',
-    date: '2024-01-17',
-    postedBy: 'IT Department',
-    priority: 'low',
-    attachment: null,
-  },
-  {
-    id: '8',
-    title: 'Republic Day Celebration',
-    description:
-      'Republic Day will be celebrated on January 26th with a special assembly at 8:00 AM. All students must wear their formal uniform. Cultural program will follow the flag hoisting ceremony.',
-    category: 'Events',
-    date: '2024-01-23',
-    postedBy: 'Cultural Committee',
-    priority: 'medium',
-    attachment: null,
-  },
-];
+import { API_BASE_URL } from '../config/api';
+import { request } from '../services/api';
 
 const NoticeBoardScreen = () => {
+  const [notices, setNotices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNotice, setSelectedNotice] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
 
+  useEffect(() => {
+    fetchNotices();
+  }, []);
+
+  const fetchNotices = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Retrieve token
+      const sessionStr = await AsyncStorage.getItem('auth_session');
+      let token = null;
+      if (sessionStr) {
+        const session = JSON.parse(sessionStr);
+        token = session.token;
+      }
+
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await request('/notices', {
+        method: 'GET',
+        headers: headers,
+      });
+
+      if (response.success) {
+        setNotices(response.data);
+      } else {
+        setError(response.error || 'Failed to fetch notices');
+      }
+    } catch (err) {
+      console.error('Error fetching notices:', err);
+      setError('Unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Get unique categories for filter options
   const categories = useMemo(() => {
+    if (!notices) return ['All'];
     const uniqueCategories = [
       'All',
-      ...new Set(noticesData.map(n => n.category)),
+      ...new Set(notices.map(n => n.category).filter(Boolean)),
     ];
     return uniqueCategories;
-  }, []);
+  }, [notices]);
 
   // Filter and search notices
   const filteredNotices = useMemo(() => {
-    let filtered = noticesData;
+    if (!notices) return [];
+    let filtered = notices;
 
     // Apply category filter
     if (selectedFilter !== 'All') {
@@ -133,18 +93,18 @@ const NoticeBoardScreen = () => {
       filtered = filtered.filter(
         notice =>
           notice.title.toLowerCase().includes(query) ||
-          notice.category.toLowerCase().includes(query) ||
-          notice.description.toLowerCase().includes(query),
+          (notice.category && notice.category.toLowerCase().includes(query)) ||
+          (notice.description && notice.description.toLowerCase().includes(query)),
       );
     }
 
     // Sort by date (newest first)
     return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [selectedFilter, searchQuery]);
+  }, [selectedFilter, searchQuery, notices]);
 
   // Get priority color
   const getPriorityColor = priority => {
-    switch (priority) {
+    switch ((priority || '').toLowerCase()) {
       case 'high':
         return '#F44336'; // Red
       case 'medium':
@@ -158,22 +118,17 @@ const NoticeBoardScreen = () => {
 
   // Get category color
   const getCategoryColor = category => {
-    switch (category) {
-      case 'Academic':
-        return '#2196F3'; // Blue
-      case 'Events':
-        return '#9C27B0'; // Purple
-      case 'Holidays':
-        return '#4CAF50'; // Green
-      case 'General':
-        return '#607D8B'; // Gray
-      default:
-        return '#757575';
-    }
+    const cat = (category || '').toLowerCase();
+    if (cat.includes('academic')) return '#2196F3'; // Blue
+    if (cat.includes('event')) return '#9C27B0'; // Purple
+    if (cat.includes('holiday')) return '#4CAF50'; // Green
+    if (cat.includes('general')) return '#607D8B'; // Blue Gray
+    return '#FF751F'; // Default to Brand Orange
   };
 
   // Format date
   const formatDate = dateStr => {
+    if (!dateStr) return '';
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', {
       month: 'short',
@@ -228,18 +183,18 @@ const NoticeBoardScreen = () => {
                 { backgroundColor: getCategoryColor(item.category) },
               ]}
             >
-              <Text style={styles.categoryText}>{item.category}</Text>
+              <Text style={styles.categoryText}>{item.category || 'General'}</Text>
             </View>
           </View>
 
           <View style={styles.infoRow}>
             <Icon name="calendar" size={14} color="#666" style={styles.icon} />
-            <Text style={styles.infoText}>{formatDate(item.date)}</Text>
+            <Text style={styles.infoText}>{formatDate(item.created_at || item.date)}</Text>
           </View>
 
           <View style={styles.infoRow}>
             <Icon name="user" size={14} color="#666" style={styles.icon} />
-            <Text style={styles.infoText}>{item.postedBy}</Text>
+            <Text style={styles.infoText}>{item.postedBy || 'Admin'}</Text>
           </View>
 
           {item.attachment && (
@@ -308,6 +263,15 @@ const NoticeBoardScreen = () => {
     </TouchableOpacity>
   );
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FF751F" />
+        <Text style={styles.loadingText}>Loading Notices...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -346,13 +310,16 @@ const NoticeBoardScreen = () => {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Icon name="inbox" size={60} color="#ccc" />
-            <Text style={styles.emptyText}>No notices found</Text>
+            <Icon name={error ? "exclamation-circle" : "inbox"} size={60} color="#ccc" />
+            <Text style={styles.emptyText}>{error ? 'Failed to fetch notices' : 'No notices found'}</Text>
             <Text style={styles.emptySubtext}>
-              {selectedFilter === 'All' && !searchQuery
-                ? 'Notices will appear here'
-                : 'Try adjusting your filters'}
+              {error ? 'Please check your connection' : (selectedFilter === 'All' && !searchQuery ? 'Notices will appear here' : 'Try adjusting your filters')}
             </Text>
+            {error && (
+              <TouchableOpacity style={styles.retryButton} onPress={fetchNotices}>
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            )}
           </View>
         }
       />
@@ -397,20 +364,20 @@ const NoticeBoardScreen = () => {
                           ]}
                         >
                           <Text style={styles.categoryText}>
-                            {selectedNotice.category}
+                            {selectedNotice.category || 'General'}
                           </Text>
                         </View>
                       </View>
                       <View style={styles.detailRow}>
                         <Text style={styles.detailLabel}>Posted By:</Text>
                         <Text style={styles.detailValue}>
-                          {selectedNotice.postedBy}
+                          {selectedNotice.postedBy || 'Admin'}
                         </Text>
                       </View>
                       <View style={styles.detailRow}>
                         <Text style={styles.detailLabel}>Date:</Text>
                         <Text style={styles.detailValue}>
-                          {formatDate(selectedNotice.date)}
+                          {formatDate(selectedNotice.created_at || selectedNotice.date)}
                         </Text>
                       </View>
                       <View style={styles.detailRow}>
@@ -426,7 +393,7 @@ const NoticeBoardScreen = () => {
                           ]}
                         >
                           <Text style={styles.priorityText}>
-                            {selectedNotice.priority.toUpperCase()}
+                            {(selectedNotice.priority || 'NORMAL').toUpperCase()}
                           </Text>
                         </View>
                       </View>
@@ -496,8 +463,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
+    fontSize: 16,
+  },
   header: {
-    backgroundColor: '#2E7D32',
+    backgroundColor: '#FF751F', // Brand Orange
     padding: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
@@ -547,8 +525,8 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
   },
   filterButtonActive: {
-    backgroundColor: '#2E7D32',
-    borderColor: '#2E7D32',
+    backgroundColor: '#FF751F', // Brand Orange
+    borderColor: '#FF751F',
   },
   filterButtonText: {
     fontSize: 14,
@@ -645,7 +623,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   viewButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: '#FF751F', // Brand Orange
   },
   downloadButton: {
     backgroundColor: '#FF9800',
@@ -674,6 +652,17 @@ const styles = StyleSheet.create({
     color: '#bbb',
     marginTop: 8,
     textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 20,
+    backgroundColor: '#FF751F',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   modalContainer: {
     flex: 1,

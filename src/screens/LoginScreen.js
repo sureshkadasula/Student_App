@@ -8,6 +8,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
+import AuthService from '../services/AuthService';
 
 const LoginScreen = ({ setIsLoggedIn }) => {
   const [email, setEmail] = useState('');
@@ -17,30 +18,11 @@ const LoginScreen = ({ setIsLoggedIn }) => {
   const handleLogin = async () => {
     if (email && password) {
       try {
-        const response = await fetch('http://192.168.230.184:8000/auth/login', {
-          // Replace with your machine's IP address
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email,
-            password,
-          }),
-        });
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.status}`);
-        }
-        const data = await response.json();
-        if (data.success) {
-          Alert.alert('Login Successful', `Welcome, ${data.data.user.name}!`);
-          setIsLoggedIn(true);
-          // Store token and user data here, e.g., AsyncStorage or context
-        } else {
-          Alert.alert('Login Failed', 'Invalid credentials.');
-        }
+        const userData = await AuthService.login(email, password);
+        Alert.alert('Login Successful', `Welcome, ${userData.user.name}!`);
+        setIsLoggedIn(true);
       } catch (error) {
-        Alert.alert('Error', error.message || 'Unable to connect to server.');
+        Alert.alert('Login Failed', error.message || 'Invalid credentials.');
         console.log(error);
       }
     } else {

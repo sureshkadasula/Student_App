@@ -193,6 +193,7 @@ const AssignmentsScreen = () => {
 
   // Handle download attachment
   const handleDownloadAttachment = assignment => {
+    console.log('Download pressed for:', assignment.title);
     if (assignment.attachment) {
       Alert.alert('Download', `Downloading ${assignment.attachment}...`, [
         { text: 'OK', style: 'default' },
@@ -230,7 +231,7 @@ const AssignmentsScreen = () => {
       <TouchableOpacity
         style={styles.assignmentCard}
         onPress={() => handleViewDetails(item)}
-        activeOpacity={0.7}
+        activeOpacity={0.9} // Increased opacity to differentiate from inner buttons
       >
         <View style={styles.cardHeader}>
           <Text style={styles.assignmentTitle}>{item.title}</Text>
@@ -310,7 +311,7 @@ const AssignmentsScreen = () => {
             </TouchableOpacity>
           )}
 
-          {item.attachment && (
+          {/* {item.attachment && (
             <TouchableOpacity
               style={[styles.actionButton, styles.downloadButton]}
               onPress={() => handleDownloadAttachment(item)}
@@ -323,7 +324,7 @@ const AssignmentsScreen = () => {
               />
               <Text style={styles.buttonText}>Download</Text>
             </TouchableOpacity>
-          )}
+          )} */}
         </View>
       </TouchableOpacity>
     );
@@ -352,40 +353,44 @@ const AssignmentsScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Assignments</Text>
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Icon name="search" size={18} color="#666" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search assignments..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor="#999"
-        />
-      </View>
-
-      {/* Filter Buttons */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterContainer}
-        contentContainerStyle={styles.filterContent}
-      >
-        {subjects.map(renderFilterButton)}
-      </ScrollView>
-
-      {/* Assignments List */}
       <FlatList
         data={filteredAssignments}
         renderItem={renderAssignmentCard}
         keyExtractor={item => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          <>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>Assignments</Text>
+            </View>
+
+            {/* Search Bar */}
+            <View style={styles.searchContainer}>
+              <Icon name="search" size={18} color="#666" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search assignments..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholderTextColor="#999"
+              />
+            </View>
+
+            {/* Filter Buttons */}
+            <View style={{ marginBottom: 10 }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.filterContainer}
+                contentContainerStyle={styles.filterContent}
+              >
+                {subjects.map(renderFilterButton)}
+              </ScrollView>
+            </View>
+          </>
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Icon name="inbox" size={60} color="#ccc" />
@@ -537,7 +542,7 @@ const AssignmentsScreen = () => {
                         <Text style={styles.buttonText}>Submit Assignment</Text>
                       </TouchableOpacity>
                     )}
-                    {selectedAssignment.attachment && (
+                    {/* {selectedAssignment.attachment && (
                       <TouchableOpacity
                         style={[
                           styles.modalActionButton,
@@ -557,7 +562,7 @@ const AssignmentsScreen = () => {
                           Download Attachment
                         </Text>
                       </TouchableOpacity>
-                    )}
+                    )} */}
                   </View>
                 </>
               )}
@@ -657,10 +662,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#2E7D32',
-    padding: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    backgroundColor: '#FF751F',
+    padding: 10,
   },
   headerTitle: {
     fontSize: 24,
@@ -693,9 +696,11 @@ const styles = StyleSheet.create({
   filterContainer: {
     paddingLeft: 15,
     marginBottom: 10,
+    maxHeight: 100, // Ensure it has height
   },
   filterContent: {
     paddingRight: 15,
+    alignItems: 'center', // Center buttons vertically
   },
   filterButton: {
     paddingHorizontal: 16,
@@ -707,8 +712,8 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
   },
   filterButtonActive: {
-    backgroundColor: '#2E7D32',
-    borderColor: '#2E7D32',
+    backgroundColor: '#FF751F',
+    borderColor: '#FF751F',
   },
   filterButtonText: {
     fontSize: 14,

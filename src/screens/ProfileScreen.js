@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,310 +8,207 @@ import {
   Image,
   ScrollView,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import AuthService from '../services/AuthService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const ProfileScreen = () => {
-  const [name, setName] = useState('John Doe');
-  const [email, setEmail] = useState('john.doe@example.com');
-  const [password, setPassword] = useState('password123');
-  const [studentID, setStudentID] = useState('123456');
+
+
+const { width } = Dimensions.get('window');
+
+const ProfileScreen = ({ setIsLoggedIn, navigation }) => {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [className, setClassName] = useState('');
+  const [dob, setDob] = useState('');
+  const [address, setAddress] = useState('');
+  const [password, setPassword] = useState('********');
+  const [studentID, setStudentID] = useState('');
+  const [zipCode, setZipCode] = useState('08817'); // Added to match image
   const [avatarUri, setAvatarUri] = useState(null);
   const [coverUri, setCoverUri] = useState(null);
 
-  const selectImage = type => {
-    console.log('selectImage called for ' + type);
-    const options = {
-      mediaType: 'photo',
-      includeBase64: false,
-    };
-    launchImageLibrary(options, response => {
-      if (response.didCancel) {
-        console.log('User cancelled image picker');
-      } else if (response.errorMessage) {
-        console.log('ImagePicker Error: ', response.errorMessage);
-        Alert.alert('Error', 'Failed to select image');
-      } else {
+  useEffect(() => {
+    loadUserProfile();
+  }, []);
+
+  const loadUserProfile = async () => {
+    try {
+      const session = await AuthService.getSession();
+      const storedProfile = await AsyncStorage.getItem('student_profile');
+
+      let profileData = null;
+      if (storedProfile) {
+        profileData = JSON.parse(storedProfile);
+        console.log('Using stored profile data:', profileData);
+      }
+
+      if (session && session.user) {
+        // Prefer profile data if available, otherwise fallback to session user data
+        setName(profileData?.name || session.user.name);
+        setEmail(profileData?.email || session.user.email);
+        setStudentID(profileData?.student_userid || profileData?.student_id || session.user.userid);
+
+        // New fields from profileData
+        setClassName(profileData?.class_name || '');
+        setDob(profileData?.date_of_birth || '');
+        setAddress(profileData?.student_address || profileData?.address || '');
+        setPhone(profileData?.student_phone || profileData?.phone || '');
+      }
+    } catch (error) {
+      console.log('Error loading user profile:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    Alert.alert('Logout', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Logout', onPress: async () => setIsLoggedIn && setIsLoggedIn(false) },
+    ]);
+  };
+
+  const selectImage = (type) => {
+    const options = { mediaType: 'photo', includeBase64: false };
+    launchImageLibrary(options, (response) => {
+      if (!response.didCancel && !response.errorMessage && response.assets && response.assets.length > 0) {
         const uri = response.assets[0].uri;
-        if (type === 'cover') {
-          setCoverUri(uri);
-        } else if (type === 'avatar') {
+        if (type === 'avatar') {
           setAvatarUri(uri);
+          setCoverUri(uri);
+        } else {
+          setCoverUri(uri);
         }
-        Alert.alert('Image Updated', `${type} image has been updated.`);
       }
     });
   };
 
-  const saveProfile = () => {
-    Alert.alert('Profile Saved', 'Your profile has been updated.');
-  };
-
   return (
-    <ScrollView style={styles.container}>
-      <View>
-        {/* Header Section with Cover Background */}
-        <View style={styles.headerContainer}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* HEADER SECTION */}
+      <View style={styles.header}>
+        <View style={styles.coverWrapper}>
           <Image
-            source={
-              coverUri
-                ? { uri: coverUri }
-                : require('../assets/images/app-logo.png')
-            }
+            source={avatarUri ? { uri: avatarUri } : require('../assets/images/app-logo.png')}
             style={styles.coverImage}
+            blurRadius={2}
           />
-          <TouchableOpacity
-            style={styles.coverEditButton}
-            onPress={() => selectImage('cover')}
-            activeOpacity={0.7}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Icon name="pencil" size={25} color="#FF751F" />
-          </TouchableOpacity>
+          <View style={styles.overlay} />
+
+          {/* Top Toolbar */}
+          <View style={styles.topToolbar}>
+            <TouchableOpacity onPress={() => navigation.openDrawer()}>
+              <Icon name="bars" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>PROFILE</Text>
+            <TouchableOpacity>
+              <Icon name="bell" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* PROFILE IMAGE OVERLAP */}
+        <View style={styles.avatarContainer}>
           <View style={styles.avatarWrapper}>
-            <TouchableOpacity onPress={() => selectImage('avatar')}>
+            <TouchableOpacity onPress={() => selectImage('avatar')} style={styles.avatarBorder}>
               <Image
-                source={
-                  avatarUri
-                    ? { uri: avatarUri }
-                    : require('../assets/images/app-logo.png')
-                }
+                source={avatarUri ? { uri: avatarUri } : require('../assets/images/app-logo.png')}
                 style={styles.avatarImage}
               />
             </TouchableOpacity>
-            <View style={styles.avatarEditIcon}>
-              <TouchableOpacity onPress={() => selectImage('avatar')}>
-                <Icon name="camera" size={20} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </View>
-          <Text style={styles.userName}>{name}</Text>
-          <Text style={styles.userEmail}>{email}</Text>
-        </View>
-
-        {/* Profile Details */}
-        <View style={styles.cardContainer}>
-          <View style={styles.fieldContainer}>
-            <Icon
-              name="user"
-              size={20}
-              color="#FF751F"
-              style={styles.fieldIcon}
-            />
-            <View style={styles.fieldContent}>
-              <Text style={styles.fieldLabel}>Full Name</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={name}
-                onChangeText={setName}
-                placeholder="Enter your full name"
-              />
-            </View>
-          </View>
-
-          <View style={styles.fieldContainer}>
-            <Icon
-              name="envelope"
-              size={20}
-              color="#FF751F"
-              style={styles.fieldIcon}
-            />
-            <View style={styles.fieldContent}>
-              <Text style={styles.fieldLabel}>Email Address</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Enter your email"
-                keyboardType="email-address"
-              />
-            </View>
-          </View>
-
-          <View style={styles.fieldContainer}>
-            <Icon
-              name="lock"
-              size={20}
-              color="#FF751F"
-              style={styles.fieldIcon}
-            />
-            <View style={styles.fieldContent}>
-              <Text style={styles.fieldLabel}>Password</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Enter your password"
-                secureTextEntry
-              />
-            </View>
-          </View>
-
-          <View style={styles.fieldContainer}>
-            <Icon
-              name="id-card"
-              size={20}
-              color="#FF751F"
-              style={styles.fieldIcon}
-            />
-            <View style={styles.fieldContent}>
-              <Text style={styles.fieldLabel}>Student ID</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={studentID}
-                onChangeText={setStudentID}
-                placeholder="Enter your student ID"
-              />
-            </View>
+            <TouchableOpacity style={styles.avatarCamera} onPress={() => selectImage('avatar')}>
+              <Icon name="camera" size={14} color="#fff" />
+            </TouchableOpacity>
           </View>
         </View>
+
+        <Text style={styles.displayName}>{name || 'AVLIN THOMUS'}</Text>
+        <Text style={styles.displayLocation}>NEW YORK</Text>
+      </View>
+
+      {/* FORM SECTION */}
+      <View style={styles.formContainer}>
+        <ProfileField label="Name" value={name} editable={false} />
+        <ProfileField label="Email" value={email} editable={false} keyboardType="email-address" />
+        <ProfileField label="Phone" value={phone} editable={false} keyboardType="phone-pad" />
+        <ProfileField label="Class" value={className} editable={false} />
+        <ProfileField label="Date of Birth" value={dob} editable={false} />
+        <ProfileField label="Address" value={address} editable={false} multiline />
+        <ProfileField label="Student ID" value={studentID} editable={false} />
+        {/* <ProfileField label="Password" value={password} onChangeText={setPassword} secureTextEntry={true} /> */}
+        {/* <ProfileField label="Zip Code" value={zipCode} onChangeText={setZipCode} /> */}
+
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutText}>LOGOUT</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
 };
 
+// Reusable Field Component to keep code clean
+const ProfileField = ({ label, value, onChangeText, ...props }) => (
+  <View style={styles.fieldWrapper}>
+    <Text style={styles.fieldLabel}>{label}</Text>
+    <TextInput
+      style={styles.input}
+      value={value}
+      onChangeText={onChangeText}
+      placeholderTextColor="#ccc"
+      {...props}
+    />
+  </View>
+);
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  coverContainer: {
-    height: 200,
-    position: 'relative',
-  },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  coverEditButton: {
+  container: { flex: 1, backgroundColor: '#FFF' },
+  header: { alignItems: 'center', marginBottom: 20 },
+  coverWrapper: { width: '100%', height: 220, position: 'relative' },
+  coverImage: { width: '100%', height: '100%' },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(126, 87, 194, 0.5)' },
+
+  topToolbar: {
     position: 'absolute',
-    top: 15,
-    right: 15,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    padding: 15,
-    borderRadius: 30,
-  },
-  headerContainer: {
-    height: 200,
+    top: 20,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'transparent',
-    position: 'relative',
+    paddingHorizontal: 20,
+    zIndex: 10,
   },
-  avatarWrapper: {
-    position: 'absolute',
-    top: 130,
-    alignSelf: 'center',
-  },
-  avatarImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: '#FF751F',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-  },
-  avatarEditIcon: {
+  headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold', letterSpacing: 1 },
+
+  avatarContainer: { marginTop: -50, alignItems: 'center' },
+  avatarWrapper: { position: 'relative' },
+  avatarBorder: { padding: 4, backgroundColor: '#fff', borderRadius: 60, elevation: 10, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10 },
+  avatarImage: { width: 100, height: 100, borderRadius: 50 },
+  avatarCamera: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#FF751F',
-    padding: 6,
-    borderRadius: 15,
+    backgroundColor: '#7E57C2',
+    padding: 8,
+    borderRadius: 20,
+    elevation: 5,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
-  userName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#0c0b0b',
-    position: 'absolute',
-    bottom: -35,
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    // textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    // textShadowOffset: { width: 1, height: 1 },
-    // textShadowRadius: 2,
-  },
-  userEmail: {
-    fontSize: 16,
-    color: '#0b0b0b',
-    position: 'absolute',
-    bottom: -50,
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    // textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    // textShadowOffset: { width: 1, height: 1 },
-    // textShadowRadius: 2,
-  },
-  cardContainer: {
-    marginTop: 60,
-    marginLeft: 0,
-    marginRight: 20,
-    marginBottom: 20,
-    padding: 20,
-    alignSelf: 'flex-start',
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
-    textAlign: 'left',
-  },
-  fieldContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    width: '100%',
-  },
-  fieldIcon: {
-    marginRight: 15,
-  },
-  fieldContent: {
-    flex: 1,
-  },
-  fieldLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 5,
-    textTransform: 'uppercase',
-    fontWeight: 'bold',
-  },
-  fieldInput: {
-    fontSize: 16,
-    color: '#333',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-    paddingVertical: 5,
-  },
-  saveButton: {
-    backgroundColor: '#FF751F',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 10,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
-  saveIcon: {
-    marginRight: 10,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
+
+  displayName: { marginTop: 15, fontSize: 22, fontWeight: 'bold', color: '#333', textTransform: 'uppercase' },
+  displayLocation: { fontSize: 13, color: '#999', letterSpacing: 1, marginTop: 4 },
+
+  formContainer: { paddingHorizontal: 25, marginTop: 10 },
+  fieldWrapper: { borderBottomWidth: 1, borderBottomColor: '#EEE', paddingVertical: 12, marginBottom: 10 },
+  fieldLabel: { color: '#7E57C2', fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  input: { color: '#333', fontSize: 16, fontWeight: '600', padding: 0 },
+
+  logoutButton: { backgroundColor: '#7E57C2', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 30, marginBottom: 40 },
+  logoutText: { color: '#FFF', fontWeight: 'bold', fontSize: 16, letterSpacing: 1 }
 });
 
 export default ProfileScreen;
