@@ -1,26 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  Modal,
-  FlatList,
   ActivityIndicator,
-  Alert,
+  StatusBar,
+  Dimensions,
+  ImageBackground,
+  Linking,
+  TouchableOpacity
 } from 'react-native';
-import { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import { API_BASE_URL } from '../config/api';
-import { request } from '../services/api';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { request } from '../services/api'; // Assuming this helper exists
+import { colors } from '../theme/colors';
+
+const { width } = Dimensions.get('window');
 
 const HostelScreen = () => {
-  const [hostelData, setHostelData] = useState([]);
+  const [hostelData, setHostelData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedHostel, setSelectedHostel] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchHostelDetails();
@@ -28,389 +29,202 @@ const HostelScreen = () => {
 
   const fetchHostelDetails = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const sessionStr = await AsyncStorage.getItem('auth_session');
       if (!sessionStr) {
-        setLoading(false);
-        return;
+        throw new Error('No session found');
       }
-
       const session = JSON.parse(sessionStr);
       const { user, token } = session;
 
-      if (!user || !user.userid) {
-        console.error('User ID not found in session');
-        setLoading(false);
-        return;
+      if (!user || (!user.userid && !user.id)) {
+        throw new Error('User ID not found');
       }
 
-      const response = await request(`/student-hostel/${user.id}`, {
+      // Use user.userid if available, otherwise fallback to check
+      const queryId = user.userid || user.id;
+
+      // Based on router analysis: GET /student-hostel/:userid
+      const response = await request(`/student-hostel/${queryId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         },
       });
 
       if (response.success && response.data) {
-        // Map API response to UI format
-        const apiData = response.data;
-        const mappedData = {
-          id: apiData.allocation_id,
-          studentName: user.name, // Display logged-in user's name
-          blockName: apiData.block_name,
-          floorName: `Floor ${apiData.floor_number}`,
-          floorNumber: apiData.floor_number,
-          roomNumber: apiData.room_number,
-          sharingType: 2, // Default or fetch if available
-          sharingTypeLabel: `${apiData.capacity} Sharing`, // Infer from capacity
-          wing: apiData.hostel_name, // Using hostel name as wing/building identifier
-          wardenName: apiData.warden_name,
-          wardenContact: apiData.warden_contact,
-          amenities: ['Bed', 'Study Table', 'Cupboard', apiData.mess_facility ? 'Mess' : null].filter(Boolean),
-          status: 'Active',
-          checkInDate: new Date(apiData.allocation_date).toISOString().split('T')[0],
-          checkOutDate: 'N/A', // Not in current response
-        };
-
-        setHostelData([mappedData]);
+        setHostelData(response.data);
       } else {
-        console.log('No hostel data found:', response.error);
-        setHostelData([]);
-        // Optional: setError(response.error);
+        // If 404 or just no data
+        setHostelData(null);
+        if (response.error) setError(response.error);
       }
-    } catch (error) {
-      console.error('Error fetching hostel details:', error);
-      // Alert.alert('Error', 'Failed to fetch hostel details');
+    } catch (err) {
+      console.error('Error fetching hostel details:', err);
+      setError(err.message || 'Failed to load hostel details');
     } finally {
       setLoading(false);
     }
   };
 
-  // Get sharing type color
-  const getSharingTypeColor = sharingType => {
-    switch (sharingType) {
-      case 2:
-        return '#4CAF50'; // Green
-      case 3:
-        return '#2196F3'; // Blue
-      case 4:
-        return '#FF9800'; // Orange
-      case 5:
-        return '#F44336'; // Red
-      default:
-        return '#757575'; // Gray
-    }
-  };
-
-  // Get status color
-  const getStatusColor = status => {
-    switch (status) {
-      case 'Active':
-        return '#4CAF50'; // Green
-      case 'Inactive':
-        return '#F44336'; // Red
-      default:
-        return '#757575'; // Gray
-    }
-  };
-
-  // Handle view hostel details
-  const handleViewDetails = hostel => {
-    setSelectedHostel(hostel);
-    setModalVisible(true);
-  };
-
-  // Render hostel card
-  const renderHostelCard = ({ item }) => {
+  if (loading) {
     return (
-      <TouchableOpacity
-        style={styles.hostelCard}
-        onPress={() => handleViewDetails(item)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.cardHeader}>
-          <View style={styles.blockContainer}>
-            <Icon name="building" size={16} color="#666" />
-            <Text style={styles.blockName}>{item.blockName}</Text>
-          </View>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: getStatusColor(item.status) },
-            ]}
-          >
-            <Text style={styles.statusText}>{item.status}</Text>
-          </View>
+      <View style={styles.loadingContainer}>
+        <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
+        <ActivityIndicator size="large" color="#FF751F" />
+        <Text style={styles.loadingText}>Loading Hostel Details...</Text>
+      </View>
+    );
+  }
+
+  // If no data found or error
+  if (!hostelData || error) {
+    return (
+      <View style={styles.container}>
+        <StatusBar backgroundColor="#fff" barStyle="dark-content" />
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Hostel</Text>
         </View>
 
-        <View style={styles.cardBody}>
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIconContainer}>
+            <Icon name="bunk-bed-outline" size={64} color="#FF751F" />
+          </View>
+          <Text style={styles.emptyTitle}>No Hostel Allocated</Text>
+          <Text style={styles.emptySubtitle}>
+            {error ? error : "You haven't been allocated a hostel room yet."}
+          </Text>
+          <Text style={styles.emptySubtitle}>
+            Please contact the admin for allocation.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  const {
+    block_name,
+    room_number,
+    floor_number,
+    hostel_name,
+    warden_name,
+    warden_contact,
+    mess_facility,
+    allocation_status
+  } = hostelData;
+
+  const handleCallWarden = () => {
+    if (warden_contact) {
+      Linking.openURL(`tel:${warden_contact}`);
+    }
+  };
+
+  const amenities = [
+    { icon: 'bed', label: 'Bed' },
+    { icon: 'desk', label: 'Study Table' },
+    { icon: 'cupboard', label: 'Cupboard' },
+    { icon: 'fan', label: 'Ceiling Fan' },
+  ];
+
+  if (mess_facility) {
+    amenities.push({ icon: 'silverware-fork-knife', label: 'Mess Facility' });
+  }
+
+  return (
+    <View style={styles.container}>
+      <StatusBar backgroundColor="#fff" barStyle="dark-content" />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Hostel</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+
+        {/* Hostel Allocation Card */}
+        <View style={styles.mainCard}>
+          <ImageBackground
+            source={{ uri: 'https://img.freepik.com/free-vector/flat-university-concept-background_23-2148192661.jpg' }} // Placeholder generic dorm pattern
+            style={styles.cardBg}
+            imageStyle={{ borderRadius: 20, opacity: 0.1 }}
+          >
+            <View style={styles.cardHeader}>
+              <View>
+                <Text style={styles.hostelName}>{hostel_name || 'School Hostel'}</Text>
+                <Text style={styles.blockName}>{block_name || 'Block A'}</Text>
+              </View>
+              <View style={[styles.statusBadge, { backgroundColor: allocation_status === 'active' ? '#dcfce7' : '#f1f5f9' }]}>
+                <Text style={[styles.statusText, { color: allocation_status === 'active' ? '#166534' : '#64748b' }]}>
+                  {allocation_status ? allocation_status.toUpperCase() : 'ACTIVE'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.roomContainer}>
+              <View style={styles.roomHighlight}>
+                <Text style={styles.roomLabel}>ROOM</Text>
+                <Text style={styles.roomValue}>{room_number}</Text>
+              </View>
+              <View style={styles.dividerVertical} />
+              <View style={styles.floorHighlight}>
+                <Text style={styles.roomLabel}>FLOOR</Text>
+                <Text style={styles.roomValue}>{floor_number}</Text>
+              </View>
+            </View>
+          </ImageBackground>
+        </View>
+
+
+        {/* Warden Section */}
+        <Text style={styles.sectionTitle}>Warden Info</Text>
+        <View style={styles.infoCard}>
           <View style={styles.infoRow}>
-            <Icon name="user" size={14} color="#666" style={styles.icon} />
-            <Text style={styles.infoText}>{item.studentName}</Text>
+            <View style={styles.iconCircle}>
+              <Icon name="account-tie" size={24} color="#FF751F" />
+            </View>
+            <View style={styles.infoTextContainer}>
+              <Text style={styles.infoLabel}>Warden Name</Text>
+              <Text style={styles.infoValue}>{warden_name || 'Not Assigned'}</Text>
+            </View>
           </View>
 
-          <View style={styles.infoRow}>
-            <Icon
-              name="map-marker"
-              size={14}
-              color="#666"
-              style={styles.icon}
-            />
-            <Text style={styles.infoText}>{item.floorName}</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Icon name="door-open" size={14} color="#666" style={styles.icon} />
-            <Text style={styles.infoText}>Room {item.roomNumber}</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Icon name="users" size={14} color="#666" style={styles.icon} />
-            <Text
-              style={[
-                styles.infoText,
-                { color: getSharingTypeColor(item.sharingType) },
-              ]}
-            >
-              {item.sharingTypeLabel}
-            </Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Icon name="map-pin" size={14} color="#666" style={styles.icon} />
-            <Text style={styles.infoText}>{item.wing}</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Icon name="calendar" size={14} color="#666" style={styles.icon} />
-            <Text style={styles.infoText}>Check-in: {item.checkInDate}</Text>
-          </View>
-
-          {item.amenities && item.amenities.length > 0 && (
-            <View style={styles.amenitiesContainer}>
-              {item.amenities.slice(0, 3).map((amenity, index) => (
-                <View key={index} style={styles.amenityTag}>
-                  <Text style={styles.amenityText}>{amenity}</Text>
-                </View>
-              ))}
+          {warden_contact && (
+            <View style={[styles.infoRow, { marginTop: 16 }]}>
+              <View style={[styles.iconCircle, { backgroundColor: '#e0f2fe' }]}>
+                <Icon name="phone" size={24} color="#0284c7" />
+              </View>
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoLabel}>Contact Number</Text>
+                <Text style={styles.infoValue}>{warden_contact}</Text>
+              </View>
+              <TouchableOpacity style={styles.callButton} onPress={handleCallWarden}>
+                <Text style={styles.callButtonText}>Call</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
 
-        <View style={styles.cardActions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.viewButton]}
-            onPress={() => handleViewDetails(item)}
-          >
-            <Icon name="eye" size={14} color="#fff" style={styles.buttonIcon} />
-            <Text style={styles.buttonText}>View Details</Text>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Hostel Details</Text>
-      </View>
-
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading hostel details...</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={hostelData}
-          renderItem={renderHostelCard}
-          keyExtractor={item => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Icon name="building" size={60} color="#ccc" />
-              <Text style={styles.emptyText}>No hostel details found</Text>
-              <Text style={styles.emptySubtext}>
-                Hostel information will appear here
-              </Text>
+        {/* Accessiblity / Facilities */}
+        <Text style={styles.sectionTitle}>Room Amenities</Text>
+        <View style={styles.amenitiesGrid}>
+          {amenities.map((item, index) => (
+            <View key={index} style={styles.amenityCard}>
+              <Icon name={item.icon} size={28} color="#64748b" />
+              <Text style={styles.amenityLabel}>{item.label}</Text>
             </View>
-          }
-        />
-      )}
-
-      {/* Hostel Detail Modal */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {selectedHostel && (
-                <>
-                  <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>
-                      {selectedHostel.blockName} - {selectedHostel.roomNumber}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => setModalVisible(false)}
-                      style={styles.closeButton}
-                    >
-                      <Icon name="times" size={20} color="#666" />
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.modalBody}>
-                    <View style={styles.modalSection}>
-                      <Text style={styles.sectionTitle}>
-                        Student Information
-                      </Text>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Name:</Text>
-                        <Text style={styles.detailValue}>
-                          {selectedHostel.studentName}
-                        </Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Status:</Text>
-                        <View
-                          style={[
-                            styles.statusBadge,
-                            {
-                              backgroundColor: getStatusColor(
-                                selectedHostel.status,
-                              ),
-                            },
-                          ]}
-                        >
-                          <Text style={styles.statusText}>
-                            {selectedHostel.status}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    <View style={styles.modalSection}>
-                      <Text style={styles.sectionTitle}>Hostel Details</Text>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Block:</Text>
-                        <Text style={styles.detailValue}>
-                          {selectedHostel.blockName}
-                        </Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Floor:</Text>
-                        <Text style={styles.detailValue}>
-                          {selectedHostel.floorName}
-                        </Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Room:</Text>
-                        <Text style={styles.detailValue}>
-                          {selectedHostel.roomNumber}
-                        </Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Sharing Type:</Text>
-                        <Text
-                          style={[
-                            styles.detailValue,
-                            {
-                              color: getSharingTypeColor(
-                                selectedHostel.sharingType,
-                              ),
-                            },
-                          ]}
-                        >
-                          {selectedHostel.sharingTypeLabel}
-                        </Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Wing:</Text>
-                        <Text style={styles.detailValue}>
-                          {selectedHostel.wing}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.modalSection}>
-                      <Text style={styles.sectionTitle}>
-                        Warden Information
-                      </Text>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Warden:</Text>
-                        <Text style={styles.detailValue}>
-                          {selectedHostel.wardenName}
-                        </Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Contact:</Text>
-                        <Text style={styles.detailValue}>
-                          {selectedHostel.wardenContact}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.modalSection}>
-                      <Text style={styles.sectionTitle}>Duration</Text>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Check-in:</Text>
-                        <Text style={styles.detailValue}>
-                          {selectedHostel.checkInDate}
-                        </Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Check-out:</Text>
-                        <Text style={styles.detailValue}>
-                          {selectedHostel.checkOutDate}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {selectedHostel.amenities &&
-                      selectedHostel.amenities.length > 0 && (
-                        <View style={styles.modalSection}>
-                          <Text style={styles.sectionTitle}>Amenities</Text>
-                          <View style={styles.amenitiesList}>
-                            {selectedHostel.amenities.map((amenity, index) => (
-                              <View key={index} style={styles.amenityItem}>
-                                <Icon name="check" size={12} color="#4CAF50" />
-                                <Text style={styles.amenityItemText}>
-                                  {amenity}
-                                </Text>
-                              </View>
-                            ))}
-                          </View>
-                        </View>
-                      )}
-                  </View>
-
-                  <View style={styles.modalActions}>
-                    <TouchableOpacity
-                      style={[
-                        styles.modalActionButton,
-                        styles.closeModalButton,
-                      ]}
-                      onPress={() => setModalVisible(false)}
-                    >
-                      <Icon
-                        name="times"
-                        size={16}
-                        color="#fff"
-                        style={styles.buttonIcon}
-                      />
-                      <Text style={styles.buttonText}>Close</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
-            </ScrollView>
-          </View>
+          ))}
         </View>
-      </Modal>
+
+        {/* Rules or Notices Placeholder */}
+        <View style={styles.noticeContainer}>
+          <Icon name="information-outline" size={20} color="#64748b" />
+          <Text style={styles.noticeText}>
+            For any maintenance issues or complaints, please visit the warden's office during working hours.
+          </Text>
+        </View>
+
+      </ScrollView>
     </View>
   );
 };
@@ -418,241 +232,243 @@ const HostelScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    backgroundColor: colors.primary,
-    padding: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
-  },
-  listContent: {
-    padding: 15,
-    paddingBottom: 30,
-  },
-  hostelCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  blockContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  blockName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    minWidth: 60,
-    alignItems: 'center',
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  cardBody: {
-    marginBottom: 12,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  icon: {
-    marginRight: 8,
-    width: 16,
-    textAlign: 'center',
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#666',
-    flex: 1,
-  },
-  amenitiesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-    gap: 6,
-  },
-  amenityTag: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  amenityText: {
-    fontSize: 11,
-    color: '#666',
-    fontWeight: '500',
-  },
-  cardActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 12,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    flex: 1,
-    marginRight: 8,
-  },
-  viewButton: {
-    backgroundColor: '#2196F3',
-  },
-  buttonIcon: {
-    marginRight: 6,
-  },
-  buttonText: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '85%',
-    padding: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
-    marginRight: 10,
-  },
-  closeButton: {
-    padding: 8,
-  },
-  modalBody: {
-    marginBottom: 16,
-  },
-  modalSection: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-    paddingVertical: 4,
-  },
-  detailLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  detailValue: {
-    fontSize: 14,
-    color: '#333',
-    flex: 1,
-    textAlign: 'right',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  modalActionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  closeModalButton: {
-    backgroundColor: '#757575',
-  },
-  amenitiesList: {
-    gap: 8,
-  },
-  amenityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 4,
-  },
-  amenityItemText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#666',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 8,
-    textAlign: 'center',
-    textAlign: 'center',
+    backgroundColor: '#f8fafc',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f8fafc',
   },
   loadingText: {
-    marginTop: 10,
-    color: '#666',
+    marginTop: 12,
+    color: '#64748b',
     fontSize: 16,
+  },
+  header: {
+    paddingVertical: 20,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+
+  // Main Card Styles
+  mainCard: {
+    backgroundColor: '#FF751F',
+    borderRadius: 24,
+    marginBottom: 24,
+    elevation: 4,
+    shadowColor: '#FF751F',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    overflow: 'hidden', // for ImageBackground
+  },
+  cardBg: {
+    padding: 24,
+    width: '100%',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 24,
+  },
+  hostelName: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '600',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  blockName: {
+    fontSize: 28,
+    color: '#fff',
+    fontWeight: '800',
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FF751F',
+  },
+  roomContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 16,
+    padding: 16,
+    backdropFilter: 'blur(10px)', // Works on some versions, ignored on others
+  },
+  roomHighlight: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  floorHighlight: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  dividerVertical: {
+    width: 1,
+    height: '80%',
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  roomLabel: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  roomValue: {
+    fontSize: 24,
+    color: '#fff',
+    fontWeight: '700',
+  },
+
+  // Section Styles
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 12,
+    marginLeft: 4,
+  },
+  infoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+    elevation: 1,
+    shadowColor: '#64748b',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#fff7ed', // Light orange
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  infoTextContainer: {
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 2,
+  },
+  infoValue: {
+    fontSize: 16,
+    color: '#0f172a',
+    fontWeight: '600',
+  },
+  callButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#0284c7',
+    borderRadius: 20,
+  },
+  callButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // Amenities
+  amenitiesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
+  },
+  amenityCard: {
+    width: (width - 40 - 12) / 2, // 2 column grid
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    elevation: 1,
+    shadowColor: '#64748b',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  amenityLabel: {
+    fontSize: 13,
+    color: '#475569',
+    fontWeight: '500',
+  },
+
+  // Notice
+  noticeContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  noticeText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#64748b',
+    lineHeight: 18,
+  },
+
+  // Empty State
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+    marginTop: -40,
+  },
+  emptyIconContainer: {
+    width: 100,
+    height: 100,
+    backgroundColor: '#fff7ed',
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
 

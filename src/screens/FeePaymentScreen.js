@@ -6,14 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  FlatList,
   RefreshControl,
+  StatusBar,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../config/api';
 import { request } from '../services/api';
 import AuthService from '../services/AuthService';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const FeePaymentScreen = () => {
   const [loading, setLoading] = useState(true);
@@ -32,17 +30,13 @@ const FeePaymentScreen = () => {
       setError(null);
 
       const session = await AuthService.getSession();
-      console.log('🚀 [FeePaymentScreen] Session:', session.token);
       if (!session || !session.user) {
         throw new Error('User session not found');
       }
 
       const userid = session.user.userid;
-
       const response = await request(`/student-fees/by-userid-standard/${userid}`, {
-        headers: {
-          'Authorization': `Bearer ${session.token}`
-        },
+        headers: { 'Authorization': `Bearer ${session.token}` },
       });
 
       if (response.success) {
@@ -84,6 +78,7 @@ const FeePaymentScreen = () => {
   if (error) {
     return (
       <View style={[styles.container, styles.centerContent]}>
+        <Icon name="alert-circle-outline" size={48} color="#ef4444" />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={fetchFeeData}>
           <Text style={styles.retryButtonText}>Retry</Text>
@@ -104,194 +99,230 @@ const FeePaymentScreen = () => {
   const paymentPercentage = balance.payment_percentage || 0;
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      {/* Header Section */}
+    <View style={styles.container}>
+      <StatusBar backgroundColor="#f8fafc" barStyle="dark-content" />
+
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Fee Payment</Text>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF751F']} />}
+      >
+        {/* Student Info Card */}
         <View style={styles.studentInfoCard}>
           <View style={styles.avatarContainer}>
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarText}>{student.name.charAt(0)}</Text>
-            </View>
+            <Text style={styles.avatarText}>{student.name.charAt(0)}</Text>
           </View>
           <View style={styles.infoContent}>
             <Text style={styles.studentName}>{student.name}</Text>
             <Text style={styles.studentDetail}>
-              Class: {student.class_name} | Std: {student.standard}
+              {student.class_name} • {student.standard}
             </Text>
-            <Text style={styles.studentDetail}>ID: {student.userid}</Text>
             <Text style={styles.academicYear}>{student.academic_year}</Text>
           </View>
         </View>
-      </View>
 
-      {/* Balance Overview Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Payment Overview</Text>
-        <View style={styles.balanceContainer}>
-          <View style={styles.balanceRow}>
-            <View>
-              <Text style={styles.balanceLabel}>Total Fees</Text>
-              <Text style={styles.balanceValue}>{formatCurrency(balance.total_fee)}</Text>
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={styles.balanceLabel}>Net Payable</Text>
-              <Text style={styles.balanceValue}>{formatCurrency(balance.net_payable)}</Text>
-            </View>
+        {/* Balance Overview Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Icon name="wallet-outline" size={20} color="#FF751F" style={{ marginRight: 8 }} />
+            <Text style={styles.cardTitle}>Payment Overview</Text>
           </View>
 
-          <View style={styles.progressBarBackground}>
-            <View style={[styles.progressBarFill, { width: `${Math.min(paymentPercentage, 100)}%` }]} />
-          </View>
-          <View style={styles.progressLabels}>
-            <Text style={styles.progressText}>{paymentPercentage}% Paid</Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.balanceRow}>
-            <View>
-              <Text style={styles.balanceLabel}>Paid Amount</Text>
-              <Text style={[styles.balanceValue, { color: '#4CAF50' }]}>{formatCurrency(balance.total_paid)}</Text>
+          <View style={styles.balanceContainer}>
+            <View style={styles.balanceGrid}>
+              <View style={styles.balanceItem}>
+                <Text style={styles.balanceLabel}>Total Fees</Text>
+                <Text style={styles.balanceValue}>{formatCurrency(balance.total_fee)}</Text>
+              </View>
+              <View style={[styles.balanceItem, { alignItems: 'flex-end' }]}>
+                <Text style={styles.balanceLabel}>Paid</Text>
+                <Text style={[styles.balanceValue, { color: '#10b981' }]}>{formatCurrency(balance.total_paid)}</Text>
+              </View>
             </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={styles.balanceLabel}>Outstanding</Text>
-              <Text style={[styles.balanceValue, { color: '#F44336' }]}>{formatCurrency(balance.outstanding)}</Text>
+
+            <View style={styles.progressBarBackground}>
+              <View style={[styles.progressBarFill, { width: `${Math.min(paymentPercentage, 100)}%` }]} />
+            </View>
+            <View style={styles.progressLabels}>
+              <Text style={styles.progressText}>{paymentPercentage}% Paid</Text>
+              <Text style={styles.progressText}>{100 - paymentPercentage}% Remaining</Text>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.outstandingRow}>
+              <Text style={styles.outstandingLabel}>Outstanding Amount</Text>
+              <Text style={styles.outstandingValue}>{formatCurrency(balance.outstanding)}</Text>
             </View>
           </View>
         </View>
-      </View>
 
-      {/* Fee Structure Card (Collapsible) */}
-      <View style={styles.card}>
-        <TouchableOpacity
-          style={styles.cardHeaderActive}
-          onPress={() => setShowStructure(!showStructure)}
-        >
-          <Text style={styles.cardTitle}>Fee Structure</Text>
-          <Icon name={showStructure ? "chevron-up" : "chevron-down"} size={16} color="#666" />
-        </TouchableOpacity>
-
-        {showStructure && (
-          <View style={styles.structureList}>
-            {Object.entries(fee_template.structure).map(([key, value]) => {
-              if (value > 0) {
-                return (
-                  <View key={key} style={styles.structureRow}>
-                    <Text style={styles.structureLabel}>
-                      {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </Text>
-                    <Text style={styles.structureValue}>{formatCurrency(value)}</Text>
-                  </View>
-                );
-              }
-              return null;
-            })}
-            <View style={[styles.structureRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>Total Annual Fee</Text>
-              <Text style={styles.totalValue}>{formatCurrency(fee_template.total_annual_fee)}</Text>
+        {/* Fee Structure (Accordion) */}
+        <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.accordionHeader}
+            onPress={() => setShowStructure(!showStructure)}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Icon name="file-document-outline" size={20} color="#64748b" style={{ marginRight: 8 }} />
+              <Text style={styles.cardTitle}>Fee Structure</Text>
             </View>
+            <Icon name={showStructure ? "chevron-up" : "chevron-down"} size={24} color="#94a3b8" />
+          </TouchableOpacity>
+
+          {showStructure && (
+            <View style={styles.structureList}>
+              <View style={styles.structureDivider} />
+              {Object.entries(fee_template.structure).map(([key, value]) => {
+                if (value > 0) {
+                  return (
+                    <View key={key} style={styles.structureRow}>
+                      <Text style={styles.structureLabel}>
+                        {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </Text>
+                      <Text style={styles.structureValue}>{formatCurrency(value)}</Text>
+                    </View>
+                  );
+                }
+                return null;
+              })}
+              <View style={[styles.structureRow, styles.totalRow]}>
+                <Text style={styles.totalLabel}>Total Annual Fee</Text>
+                <Text style={styles.totalValue}>{formatCurrency(fee_template.total_annual_fee)}</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Transaction History */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Icon name="history" size={20} color="#64748b" style={{ marginRight: 8 }} />
+            <Text style={styles.cardTitle}>Transaction History</Text>
           </View>
-        )}
-      </View>
 
-      {/* Transaction History */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Transaction History</Text>
-        {payments_summary.transaction_history.length === 0 ? (
-          <Text style={styles.emptyText}>No transactions found.</Text>
-        ) : (
-          payments_summary.transaction_history.map((txn, index) => (
-            <View key={index} style={styles.txnRow}>
-              <View style={styles.txnIcon}>
-                <Icon name="check-circle" size={24} color="#4CAF50" />
-              </View>
-              <View style={styles.txnInfo}>
-                <Text style={styles.txnMethod}>{txn.payment_method}</Text>
-                <Text style={styles.txnDate}>{new Date(txn.payment_date).toLocaleDateString()}</Text>
-              </View>
-              <View style={styles.txnAmountContainer}>
-                <Text style={styles.txnAmount}>{formatCurrency(txn.paid_amount)}</Text>
-                <Text style={styles.txnStatus}>{txn.status}</Text>
-              </View>
+          {payments_summary.transaction_history.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No transactions recorded.</Text>
             </View>
-          ))
-        )}
-      </View>
+          ) : (
+            payments_summary.transaction_history.map((txn, index) => (
+              <View key={index} style={styles.txnRow}>
+                <View style={styles.txnIconContainer}>
+                  <Icon name={txn.payment_method === 'online' ? 'credit-card-outline' : 'cash'} size={20} color="#64748b" />
+                </View>
+                <View style={styles.txnInfo}>
+                  <Text style={styles.txnMethod}>{txn.payment_method || 'Payment'}</Text>
+                  <Text style={styles.txnDate}>{new Date(txn.payment_date).toLocaleDateString()}</Text>
+                </View>
+                <View style={styles.txnAmountContainer}>
+                  <Text style={styles.txnAmount}>{formatCurrency(txn.paid_amount)}</Text>
+                  <View style={styles.statusChip}>
+                    <Text style={styles.txnStatus}>{txn.status}</Text>
+                  </View>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
 
-      <View style={{ height: 20 }} />
-    </ScrollView>
+        <View style={styles.footerSpacing} />
+      </ScrollView>
+
+      {/* Pay Now Button (Floating) */}
+      <View style={styles.footerContainer}>
+        <TouchableOpacity style={styles.payButton} activeOpacity={0.8}>
+          <Text style={styles.payButtonText}>Pay Fees</Text>
+          <Icon name="arrow-right" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f8fafc',
   },
   centerContent: {
     justifyContent: 'center',
     alignItems: 'center',
   },
+  scrollContent: {
+    paddingBottom: 100,
+  },
   loadingText: {
-    marginTop: 10,
-    color: '#666',
-    fontSize: 16,
+    marginTop: 12,
+    color: '#64748b',
+    fontSize: 15,
   },
   errorText: {
-    color: '#F44336',
+    color: '#ef4444',
     fontSize: 16,
-    marginBottom: 15,
+    marginTop: 12,
+    marginBottom: 20,
+    textAlign: 'center',
   },
   retryButton: {
-    backgroundColor: '#FF751F',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    backgroundColor: '#fff',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   retryButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: '#0f172a',
+    fontWeight: '600',
   },
   header: {
-    backgroundColor: '#FF751F',
-    padding: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    marginBottom: 15,
-    paddingTop: 20,
+    paddingVertical: 20,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 20,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0f172a',
   },
+
+  // Student Info Card
   studentInfoCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    padding: 15,
-    borderRadius: 12,
+    backgroundColor: '#fff',
+    margin: 20,
+    padding: 20,
+    borderRadius: 16,
+    elevation: 2,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
   },
   avatarContainer: {
-    marginRight: 15,
-  },
-  avatarPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#fff',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#fff7ed', // Light orange bg
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 16,
+    borderWidth: 1,
+    borderColor: '#ffedd5',
   },
   avatarText: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#FF751F',
   },
   infoContent: {
@@ -299,130 +330,175 @@ const styles = StyleSheet.create({
   },
   studentName: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 4,
   },
   studentDetail: {
-    fontSize: 13,
-    color: '#f0f0f0',
-    marginTop: 2,
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 2,
   },
   academicYear: {
     fontSize: 12,
-    color: '#ffebb3',
+    color: '#94a3b8',
+    fontWeight: '500',
     marginTop: 4,
-    fontWeight: '600',
+    backgroundColor: '#f1f5f9',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
   },
+
+  // Generic Card
   card: {
     backgroundColor: '#fff',
-    marginHorizontal: 15,
-    marginBottom: 15,
-    borderRadius: 12,
-    padding: 15,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 20,
+    elevation: 1,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1e293b',
   },
-  cardHeaderActive: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 0,
-  },
+
+  // Balance Overview
   balanceContainer: {},
-  balanceRow: {
+  balanceGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 16,
+  },
+  balanceItem: {
+    flex: 1,
   },
   balanceLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 2,
+    fontSize: 13,
+    color: '#64748b',
+    marginBottom: 4,
   },
   balanceValue: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '700',
+    color: '#0f172a',
   },
   progressBarBackground: {
-    height: 12,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 6,
-    marginVertical: 10,
+    height: 8,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 4,
+    marginBottom: 8,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#4CAF50',
-    borderRadius: 6,
+    backgroundColor: '#10b981',
+    borderRadius: 4,
   },
   progressLabels: {
-    alignItems: 'flex-end',
-    marginBottom: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
   progressText: {
     fontSize: 12,
-    color: '#666',
-    fontWeight: '600',
+    color: '#94a3b8',
+    fontWeight: '500',
   },
   divider: {
     height: 1,
-    backgroundColor: '#f0f0f0',
-    marginVertical: 10,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 12,
+  },
+  outstandingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  outstandingLabel: {
+    fontSize: 14,
+    color: '#ef4444',
+    fontWeight: '600',
+  },
+  outstandingValue: {
+    fontSize: 20,
+    color: '#ef4444',
+    fontWeight: '800',
+  },
+
+  // Accordion
+  accordionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   structureList: {
-    marginTop: 15,
+    marginTop: 8,
+  },
+  structureDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 12,
   },
   structureRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f9f9f9',
   },
   structureLabel: {
     fontSize: 14,
-    color: '#555',
+    color: '#475569',
   },
   structureValue: {
     fontSize: 14,
-    color: '#333',
+    color: '#1e293b',
     fontWeight: '500',
   },
   totalRow: {
-    borderBottomWidth: 0,
-    paddingTop: 12,
-    marginTop: 5,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: '#f1f5f9',
+    marginTop: 8,
+    paddingTop: 12,
   },
   totalLabel: {
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0f172a',
   },
   totalValue: {
-    fontWeight: 'bold',
-    color: '#FF751F',
     fontSize: 16,
+    fontWeight: '700',
+    color: '#FF751F',
   },
+
+  // Transactions
   txnRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#f8fafc',
   },
-  txnIcon: {
-    marginRight: 15,
+  txnIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   txnInfo: {
     flex: 1,
@@ -430,33 +506,69 @@ const styles = StyleSheet.create({
   txnMethod: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#333',
+    color: '#1e293b',
     textTransform: 'capitalize',
   },
   txnDate: {
     fontSize: 12,
-    color: '#888',
+    color: '#94a3b8',
     marginTop: 2,
   },
   txnAmountContainer: {
     alignItems: 'flex-end',
   },
   txnAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  statusChip: {
+    backgroundColor: '#ecfdf5',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginTop: 4,
   },
   txnStatus: {
-    fontSize: 11,
-    color: '#4CAF50',
-    marginTop: 2,
-    textTransform: 'capitalize',
+    fontSize: 10,
+    color: '#10b981',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  emptyContainer: {
+    padding: 16,
+    alignItems: 'center',
   },
   emptyText: {
-    textAlign: 'center',
-    color: '#999',
-    padding: 20,
+    color: '#94a3b8',
     fontStyle: 'italic',
+  },
+
+  // Footer Button
+  footerContainer: {
+    padding: 20,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  payButton: {
+    backgroundColor: '#FF751F',
+    paddingVertical: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#FF751F',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  payButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginRight: 8,
   },
 });
 

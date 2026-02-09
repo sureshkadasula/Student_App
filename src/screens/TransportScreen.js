@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { API_BASE_URL } from '../config/api';
 import { request } from '../services/api';
+import { colors } from '../theme/colors';
 
 const TransportScreen = () => {
   const [transportData, setTransportData] = useState([]);

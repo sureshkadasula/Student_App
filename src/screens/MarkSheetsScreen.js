@@ -59,6 +59,7 @@ const MarkSheetsScreen = () => {
       });
 
       if (response.success) {
+        console.log('response', response.data);
         setStudentData(response.data.student);
         setExams(response.data.exams || []);
         if (response.data.exams && response.data.exams.length > 0) {
@@ -428,7 +429,7 @@ Grade: ${currentExam.grade}
       )}
 
       {/* Action Buttons */}
-      <View style={styles.actionsSection}>
+      {/* <View style={styles.actionsSection}>
         <TouchableOpacity
           style={[styles.actionButton, styles.downloadButton]}
           onPress={handleDownloadPDF}
@@ -451,7 +452,7 @@ Grade: ${currentExam.grade}
             <Text style={styles.actionButtonText}>📤 Share Marks</Text>
           )}
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       {/* Footer Note */}
       <View style={styles.footer}>
@@ -496,7 +497,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   header: {
-    backgroundColor: '#FF751F',
     padding: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#FF751F',
     textAlign: 'center',
     marginBottom: 15,
   },
@@ -520,12 +520,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   infoLabel: {
-    color: '#e0e0e0',
+    color: '#464444ff',
     fontSize: 14,
     fontWeight: '600',
   },
   infoValue: {
-    color: '#fff',
+    color: '#464444ff',
     fontSize: 14,
     fontWeight: '500',
   },

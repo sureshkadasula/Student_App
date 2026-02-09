@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 // Sample timetable data
 export const timeSlots = [
@@ -66,38 +67,67 @@ export const timetableData = {
 const TimeTableScreen = () => {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Time Table</Text>
-      <Text style={styles.weekTitle}>Current week</Text>
+      <StatusBar backgroundColor="#FF751F" barStyle="light-content" />
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.tableContainer}>
-          {/* Header Row - Time Slots */}
-          <View style={styles.headerRow}>
-            <View style={[styles.headerCell, styles.dayHeader]}>
-              <Text style={styles.headerText}>Days</Text>
-            </View>
-            {timeSlots.map((slot, index) => (
-              <View key={index} style={styles.timeHeaderCell}>
-                <Text style={styles.headerText}>{slot}</Text>
-              </View>
-            ))}
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Time Table</Text>
+      </View>
+
+      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        <View style={styles.contentContainer}>
+          <View style={styles.weekHeader}>
+            <Icon name="calendar-week" size={24} color="#FF751F" />
+            <Text style={styles.weekTitle}>Weekly Schedule</Text>
           </View>
 
-          {/* Data Rows - Days with subjects */}
-          {days.map((day, dayIndex) => (
-            <View key={dayIndex} style={styles.dataRow}>
-              <View style={[styles.dayCell, styles.dayHeader]}>
-                <Text style={styles.dayText}>{day}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tableScrollContent}>
+            <View style={styles.tableCard}>
+              {/* Header Row - Time Slots */}
+              <View style={styles.headerRow}>
+                <View style={[styles.headerCell, styles.dayHeaderCell]}>
+                  <Text style={styles.headerText}>Day</Text>
+                </View>
+                {timeSlots.map((slot, index) => (
+                  <View key={index} style={styles.timeHeaderCell}>
+                    <Text style={styles.headerText}>{slot}</Text>
+                  </View>
+                ))}
               </View>
-              {timeSlots.map((slot, slotIndex) => (
-                <View key={slotIndex} style={styles.subjectCell}>
-                  <Text style={styles.subjectText}>
-                    {timetableData[day][slot] || '-'}
-                  </Text>
+
+              {/* Data Rows - Days with subjects */}
+              {days.map((day, dayIndex) => (
+                <View key={dayIndex} style={[styles.dataRow, dayIndex % 2 === 0 ? styles.evenRow : styles.oddRow]}>
+                  <View style={[styles.dayCell, styles.dayHeaderCell]}>
+                    <Text style={styles.dayText}>{day.substring(0, 3)}</Text>
+                  </View>
+                  {timeSlots.map((slot, slotIndex) => {
+                    const subject = timetableData[day][slot] || '-';
+                    const isLunch = subject === 'Lunch Break';
+                    return (
+                      <View key={slotIndex} style={[styles.subjectCell, isLunch && styles.lunchCell]}>
+                        <Text style={[styles.subjectText, isLunch && styles.lunchText]}>
+                          {subject}
+                        </Text>
+                      </View>
+                    );
+                  })}
                 </View>
               ))}
             </View>
-          ))}
+          </ScrollView>
+
+          <View style={styles.legendContainer}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendColor, { backgroundColor: '#e0f2fe' }]} />
+              <Text style={styles.legendText}>Classes</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendColor, { backgroundColor: '#fef3c7' }]} />
+              <Text style={styles.legendText}>Lunch Break</Text>
+            </View>
+          </View>
+
         </View>
       </ScrollView>
     </View>
@@ -107,94 +137,156 @@ const TimeTableScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 10,
+    backgroundColor: '#f8fafc',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 5,
-    textAlign: 'center',
-    color: '#333',
+  header: {
+    backgroundColor: '#FF751F',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#FF751F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  contentContainer: {
+    padding: 20,
+  },
+  weekHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   weekTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 15,
-    textAlign: 'left',
-    color: '#666',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginLeft: 10,
   },
-  tableContainer: {
+  tableScrollContent: {
+    paddingBottom: 10,
+  },
+  tableCard: {
     backgroundColor: '#fff',
-    borderRadius: 8,
+    borderRadius: 16,
     overflow: 'hidden',
     elevation: 3,
-    shadowColor: '#000',
+    shadowColor: '#64748b',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   headerRow: {
     flexDirection: 'row',
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#FF751F',
   },
   dataRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#f1f5f9',
+  },
+  evenRow: {
+    backgroundColor: '#fff',
+  },
+  oddRow: {
+    backgroundColor: '#f8fafc',
   },
   headerCell: {
-    padding: 12,
+    padding: 16,
     justifyContent: 'center',
     alignItems: 'center',
     width: 100,
     borderRightWidth: 1,
-    borderRightColor: '#e0e0e0',
+    borderRightColor: 'rgba(255,255,255,0.2)',
   },
   timeHeaderCell: {
-    padding: 12,
+    padding: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    width: 120,
+    width: 140,
     borderRightWidth: 1,
-    borderRightColor: '#e0e0e0',
+    borderRightColor: 'rgba(255,255,255,0.2)',
   },
-  dayHeader: {
-    backgroundColor: '#2E7D32',
-    width: 100,
+  dayHeaderCell: {
+    width: 80,
+    borderRightWidth: 1,
+    borderRightColor: '#e2e8f0',
+    backgroundColor: '#fff7ed',
   },
   dayCell: {
-    padding: 12,
+    padding: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    width: 100,
     borderRightWidth: 1,
-    borderRightColor: '#e0e0e0',
+    borderRightColor: '#e2e8f0',
   },
   subjectCell: {
-    padding: 12,
+    padding: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    width: 120,
+    width: 140,
     borderRightWidth: 1,
-    borderRightColor: '#e0e0e0',
+    borderRightColor: '#f1f5f9',
+  },
+  lunchCell: {
+    backgroundColor: '#fef3c7',
   },
   headerText: {
     color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  dayText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontSize: 13,
     textAlign: 'center',
   },
-  subjectText: {
-    color: '#333',
-    fontSize: 12,
+  dayText: {
+    color: '#FF751F',
+    fontWeight: '700',
+    fontSize: 14,
     textAlign: 'center',
+    textTransform: 'uppercase',
+  },
+  subjectText: {
+    color: '#334155',
+    fontSize: 13,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  lunchText: {
+    color: '#d97706',
+    fontWeight: '700',
+    fontStyle: 'italic',
+  },
+  legendContainer: {
+    flexDirection: 'row',
+    marginTop: 20,
+    justifyContent: 'center',
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 12,
+  },
+  legendColor: {
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  legendText: {
+    fontSize: 13,
+    color: '#64748b',
   },
 });
 

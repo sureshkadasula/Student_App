@@ -52,11 +52,6 @@ const BottomNavigator = ({ setIsLoggedIn }) => {
           headerShown: false, // Let the stack handle the header
         }}
       />
-      <Tab.Screen name="Profile" options={{ headerShown: false }}>
-        {props => (
-          <ProfileStackNavigator {...props} setIsLoggedIn={setIsLoggedIn} />
-        )}
-      </Tab.Screen>
       <Tab.Screen
         name="Feature Catalogue"
         component={FeatureCatalogueScreen}
@@ -81,6 +76,11 @@ const BottomNavigator = ({ setIsLoggedIn }) => {
           header: props => <CustomHeader {...props} />,
         }}
       />
+      <Tab.Screen name="Profile" options={{ headerShown: false }}>
+        {props => (
+          <ProfileStackNavigator {...props} setIsLoggedIn={setIsLoggedIn} />
+        )}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 };

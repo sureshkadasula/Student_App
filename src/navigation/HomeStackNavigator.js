@@ -32,6 +32,10 @@ const HomeStackNavigator = () => {
       <Stack.Screen
         name="HomeMain"
         component={HomeScreen}
+        options={{
+          headerBackButtonMenuEnabled: false,
+          gestureEnabled: false,
+        }}
       />
       <Stack.Screen name="Classes" component={ClassesScreen} />
       <Stack.Screen name="Mark Sheets" component={MarkSheetsScreen} />

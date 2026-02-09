@@ -40,20 +40,13 @@ const HomeScreen = () => {
     { name: 'Event', icon: 'calendar', screen: 'Event' },
     { name: 'Admin Request', icon: 'cogs', screen: 'Admin Request' },
     { name: 'Fee Payment', icon: 'credit-card', screen: 'Fee Payment' },
-    { name: 'Home Work', icon: 'pencil', screen: 'Home Work' },
     { name: 'Hostel', icon: 'home', screen: 'Hostel' },
     { name: 'Library', icon: 'book', screen: 'Library' },
     { name: 'Mark Sheets', icon: 'file-text', screen: 'Mark Sheets' },
     { name: 'Notice Board', icon: 'bullhorn', screen: 'Notice Board' },
     { name: 'Profile', icon: 'user', screen: 'Profile' },
-    { name: 'Time Table', icon: 'clock-o', screen: 'Time Table' },
     { name: 'Transport', icon: 'bus', screen: 'Transport' },
     { name: 'Analytics', icon: 'bar-chart', screen: 'Analytics' },
-    {
-      name: 'Request & Certificate Management',
-      icon: 'file-o',
-      screen: 'Request & Certificate Management',
-    },
   ];
 
   // ✅ TRUE INFINITE MARQUEE (width-aware)
@@ -133,9 +126,10 @@ const HomeScreen = () => {
           <ScrollView
             ref={scrollViewRef}
             horizontal
-            snapToInterval={Dimensions.get('window').width - 20}
+            snapToInterval={Dimensions.get('window').width - 40 + 20} // Width + Margin
             showsHorizontalScrollIndicator={false}
             style={{ marginTop: 10 }}
+            contentContainerStyle={{ paddingHorizontal: 20 }}
           >
             {slides.map((slide, index) => (
               <View key={index} style={styles.slide}>
@@ -184,10 +178,11 @@ const HomeScreen = () => {
 
 const styles = StyleSheet.create({
   marqueeContainer: {
-    height: 40,
+    height: 30, // Reduced from 40 to match dashboard.tsx
     backgroundColor: '#FF751F',
     justifyContent: 'center',
     overflow: 'hidden',
+    width: '100%',
   },
   marqueeRow: {
     flexDirection: 'row',
@@ -197,17 +192,19 @@ const styles = StyleSheet.create({
   marqueeText: {
     color: '#fff',
     fontSize: 16,
+    marginRight: 20, // Added spacing like dashboard.tsx
   },
   slide: {
-    width: Dimensions.get('window').width - 20,
+    width: Dimensions.get('window').width - 40, // Match dashboard.tsx (-40 instead of -20)
     height: 200,
-    marginHorizontal: 10,
-    borderRadius: 15,
+    marginRight: 20, // Match dashboard.tsx margin
+    borderRadius: 8, // Reduced from 15 to 8
     overflow: 'hidden',
   },
   slideImage: {
     width: '100%',
     height: '100%',
+    resizeMode: 'cover',
   },
   dots: {
     position: 'absolute',
@@ -224,42 +221,50 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     padding: 10,
+    marginTop: 10,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 20,
+    color: '#333',
   },
   card: {
     backgroundColor: '#fff',
     borderRadius: 10,
-    padding: 10,
+    padding: 15,
     elevation: 5,
+    width: '100%',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   categoriesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start', // Changed from space-between
   },
   categoryItem: {
     alignItems: 'center',
-    width: (Dimensions.get('window').width - 40) / 4 - 4,
-    margin: 4,
-    paddingBottom: 8,
+    width: '25%', // Fixed width for 4 columns
+    paddingBottom: 15,
   },
   categoryCircle: {
     width: 45,
     height: 45,
-    borderRadius: 20,
-    backgroundColor: '#8f8e8dff',
+    borderRadius: 22.5,
+    backgroundColor: '#FF751F', // Orange backgound
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 5,
   },
   categoryText: {
-    fontSize: 13,
-    fontWeight: 600,
+    fontSize: 12,
+    fontWeight: '600',
     textAlign: 'center',
-    color: '#FF751F',
+    color: '#636160ff', // Grey text
+    maxWidth: '100%',
   },
 });
 

@@ -9,10 +9,11 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  TextInput,
+  StatusBar,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import { API_BASE_URL } from '../config/api';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { request } from '../services/api';
 
 const NoticeBoardScreen = () => {
@@ -56,6 +57,7 @@ const NoticeBoardScreen = () => {
 
       if (response.success) {
         setNotices(response.data);
+        console.log(response.data)
       } else {
         setError(response.error || 'Failed to fetch notices');
       }
@@ -102,28 +104,28 @@ const NoticeBoardScreen = () => {
     return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [selectedFilter, searchQuery, notices]);
 
-  // Get priority color
-  const getPriorityColor = priority => {
+  // Get priority details
+  const getPriorityDetails = priority => {
     switch ((priority || '').toLowerCase()) {
       case 'high':
-        return '#F44336'; // Red
+        return { color: '#ef4444', icon: 'alert-circle-outline', bg: '#fee2e2' };
       case 'medium':
-        return '#FF9800'; // Orange
+        return { color: '#f59e0b', icon: 'alert-outline', bg: '#fef3c7' };
       case 'low':
-        return '#4CAF50'; // Green
+        return { color: '#10b981', icon: 'information-outline', bg: '#d1fae5' };
       default:
-        return '#757575'; // Gray
+        return { color: '#64748b', icon: 'bullhorn-outline', bg: '#f1f5f9' };
     }
   };
 
   // Get category color
   const getCategoryColor = category => {
     const cat = (category || '').toLowerCase();
-    if (cat.includes('academic')) return '#2196F3'; // Blue
-    if (cat.includes('event')) return '#9C27B0'; // Purple
-    if (cat.includes('holiday')) return '#4CAF50'; // Green
-    if (cat.includes('general')) return '#607D8B'; // Blue Gray
-    return '#FF751F'; // Default to Brand Orange
+    if (cat.includes('academic')) return { bg: '#e0f2fe', text: '#0284c7' };
+    if (cat.includes('event')) return { bg: '#f3e8ff', text: '#9333ea' };
+    if (cat.includes('holiday')) return { bg: '#dcfce7', text: '#16a34a' };
+    if (cat.includes('general')) return { bg: '#f1f5f9', text: '#475569' };
+    return { bg: '#fff7ed', text: '#FF751F' }; // Default to Brand Orange
   };
 
   // Format date
@@ -156,87 +158,41 @@ const NoticeBoardScreen = () => {
 
   // Render notice card
   const renderNoticeCard = ({ item }) => {
+    const priorityDetails = getPriorityDetails(item.priority);
+    const categoryStyle = getCategoryColor(item.category);
+
     return (
       <TouchableOpacity
         style={styles.noticeCard}
         onPress={() => handleViewDetails(item)}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
       >
         <View style={styles.cardHeader}>
-          <Text style={styles.noticeTitle}>{item.title}</Text>
-          <View
-            style={[
-              styles.priorityBadge,
-              { backgroundColor: getPriorityColor(item.priority) },
-            ]}
-          >
-            <Icon name="exclamation" size={12} color="#fff" />
+          <View style={styles.headerTitleRow}>
+            <View style={[styles.categoryBadge, { backgroundColor: categoryStyle.bg }]}>
+              <Text style={[styles.categoryText, { color: categoryStyle.text }]}>{item.category || 'General'}</Text>
+            </View>
+            <Text style={styles.dateText}>{formatDate(item.created_at || item.date)}</Text>
           </View>
+          <Text style={styles.noticeTitle} numberOfLines={2}>{item.title}</Text>
+          <Text style={styles.noticecontent} numberOfLines={2}>{item.content}</Text>
         </View>
 
         <View style={styles.cardBody}>
-          <View style={styles.infoRow}>
-            <Icon name="tag" size={14} color="#666" style={styles.icon} />
-            <View
-              style={[
-                styles.categoryBadge,
-                { backgroundColor: getCategoryColor(item.category) },
-              ]}
-            >
-              <Text style={styles.categoryText}>{item.category || 'General'}</Text>
-            </View>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Icon name="calendar" size={14} color="#666" style={styles.icon} />
-            <Text style={styles.infoText}>{formatDate(item.created_at || item.date)}</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Icon name="user" size={14} color="#666" style={styles.icon} />
-            <Text style={styles.infoText}>{item.postedBy || 'Admin'}</Text>
-          </View>
-
-          {item.attachment && (
-            <View style={styles.infoRow}>
-              <Icon
-                name="paperclip"
-                size={14}
-                color="#666"
-                style={styles.icon}
-              />
-              <Text style={styles.infoText}>{item.attachment}</Text>
-            </View>
-          )}
-
           <Text style={styles.description} numberOfLines={2}>
             {item.description}
           </Text>
-        </View>
 
-        <View style={styles.cardActions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.viewButton]}
-            onPress={() => handleViewDetails(item)}
-          >
-            <Icon name="eye" size={14} color="#fff" style={styles.buttonIcon} />
-            <Text style={styles.buttonText}>View</Text>
-          </TouchableOpacity>
+          <View style={styles.footerRow}>
+            <View style={styles.authorContainer}>
+              <Icon name="account-circle-outline" size={16} color="#64748b" style={{ marginRight: 4 }} />
+              <Text style={styles.authorText}>{item.postedBy || 'Admin'}</Text>
+            </View>
 
-          {item.attachment && (
-            <TouchableOpacity
-              style={[styles.actionButton, styles.downloadButton]}
-              onPress={() => handleDownloadAttachment(item)}
-            >
-              <Icon
-                name="download"
-                size={14}
-                color="#fff"
-                style={styles.buttonIcon}
-              />
-              <Text style={styles.buttonText}>Download</Text>
-            </TouchableOpacity>
-          )}
+            {item.attachment && (
+              <Icon name="paperclip" size={16} color="#64748b" />
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -274,43 +230,49 @@ const NoticeBoardScreen = () => {
 
   return (
     <View style={styles.container}>
+      <StatusBar backgroundColor="#FF751F" barStyle="light-content" />
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Notice Board</Text>
       </View>
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Icon name="search" size={18} color="#666" style={styles.searchIcon} />
-        <Text
-          style={styles.searchInput}
-          placeholder="Search notices..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor="#999"
-        />
-      </View>
-
-      {/* Filter Buttons */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterContainer}
-        contentContainerStyle={styles.filterContent}
-      >
-        {categories.map(renderFilterButton)}
-      </ScrollView>
-
-      {/* Notices List */}
       <FlatList
         data={filteredNotices}
         renderItem={renderNoticeCard}
         keyExtractor={item => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          <>
+            {/* Search Bar */}
+            <View style={styles.searchContainer}>
+              <Icon name="magnify" size={20} color="#94a3b8" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search notices..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
+
+            {/* Filter Buttons */}
+            <View style={{ marginBottom: 16 }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.filterContainer}
+                contentContainerStyle={styles.filterContent}
+              >
+                {categories.map(renderFilterButton)}
+              </ScrollView>
+            </View>
+          </>
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Icon name={error ? "exclamation-circle" : "inbox"} size={60} color="#ccc" />
+            <Icon name={error ? "alert-circle-outline" : "inbox-outline"} size={64} color="#e2e8f0" />
             <Text style={styles.emptyText}>{error ? 'Failed to fetch notices' : 'No notices found'}</Text>
             <Text style={styles.emptySubtext}>
               {error ? 'Please check your connection' : (selectedFilter === 'All' && !searchQuery ? 'Notices will appear here' : 'Try adjusting your filters')}
@@ -331,124 +293,67 @@ const NoticeBoardScreen = () => {
         transparent={true}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
+        <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Notice Details</Text>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <Icon name="close" size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
             <ScrollView showsVerticalScrollIndicator={false}>
               {selectedNotice && (
-                <>
-                  <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>
-                      {selectedNotice.title}
+                <View style={styles.modalBody}>
+                  <View style={styles.modalHeaderDetails}>
+                    <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(selectedNotice.category).bg, alignSelf: 'flex-start', marginBottom: 8 }]}>
+                      <Text style={[styles.categoryText, { color: getCategoryColor(selectedNotice.category).text }]}>{selectedNotice.category || 'General'}</Text>
+                    </View>
+                    <Text style={styles.modalNoticeTitle}>{selectedNotice.title}</Text>
+                    <Text style={styles.modalDate}>{formatDate(selectedNotice.created_at || selectedNotice.date)}</Text>
+                  </View>
+
+                  <View style={styles.modalSection}>
+                    <View style={styles.authorRow}>
+                      <View style={styles.avatarPlaceholder}>
+                        <Text style={styles.avatarText}>{(selectedNotice.postedBy || 'A').charAt(0)}</Text>
+                      </View>
+                      <View>
+                        <Text style={styles.postedByLabel}>Posted By</Text>
+                        <Text style={styles.postedByName}>{selectedNotice.postedBy || 'Admin'}</Text>
+                      </View>
+                      {selectedNotice.priority && (
+                        <View style={[styles.priorityBadge, { backgroundColor: getPriorityDetails(selectedNotice.priority).bg }]}>
+                          <Icon name={getPriorityDetails(selectedNotice.priority).icon} size={14} color={getPriorityDetails(selectedNotice.priority).color} style={{ marginRight: 4 }} />
+                          <Text style={[styles.priorityText, { color: getPriorityDetails(selectedNotice.priority).color }]}>{(selectedNotice.priority || 'NORMAL').toUpperCase()}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  <View style={styles.divider} />
+
+                  <View style={styles.modalSection}>
+                    <Text style={styles.sectionTitle}>Description</Text>
+                    <Text style={styles.modalDescription}>
+                      {selectedNotice.content}
                     </Text>
-                    <TouchableOpacity
-                      onPress={() => setModalVisible(false)}
-                      style={styles.closeButton}
-                    >
-                      <Icon name="times" size={20} color="#666" />
-                    </TouchableOpacity>
                   </View>
 
-                  <View style={styles.modalBody}>
+                  {selectedNotice.attachment && (
                     <View style={styles.modalSection}>
-                      <Text style={styles.sectionTitle}>Details</Text>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Category:</Text>
-                        <View
-                          style={[
-                            styles.categoryBadge,
-                            {
-                              backgroundColor: getCategoryColor(
-                                selectedNotice.category,
-                              ),
-                            },
-                          ]}
-                        >
-                          <Text style={styles.categoryText}>
-                            {selectedNotice.category || 'General'}
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Posted By:</Text>
-                        <Text style={styles.detailValue}>
-                          {selectedNotice.postedBy || 'Admin'}
-                        </Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Date:</Text>
-                        <Text style={styles.detailValue}>
-                          {formatDate(selectedNotice.created_at || selectedNotice.date)}
-                        </Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Priority:</Text>
-                        <View
-                          style={[
-                            styles.priorityBadge,
-                            {
-                              backgroundColor: getPriorityColor(
-                                selectedNotice.priority,
-                              ),
-                            },
-                          ]}
-                        >
-                          <Text style={styles.priorityText}>
-                            {(selectedNotice.priority || 'NORMAL').toUpperCase()}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    <View style={styles.modalSection}>
-                      <Text style={styles.sectionTitle}>Description</Text>
-                      <Text style={styles.modalDescription}>
-                        {selectedNotice.description}
-                      </Text>
-                    </View>
-
-                    {selectedNotice.attachment && (
-                      <View style={styles.modalSection}>
-                        <Text style={styles.sectionTitle}>Attachment</Text>
-                        <View style={styles.attachmentInfo}>
-                          <Icon name="paperclip" size={16} color="#666" />
-                          <Text style={styles.attachmentName}>
-                            {selectedNotice.attachment}
-                          </Text>
-                          <TouchableOpacity
-                            style={styles.downloadAttachmentButton}
-                            onPress={() =>
-                              handleDownloadAttachment(selectedNotice)
-                            }
-                          >
-                            <Icon name="download" size={16} color="#2196F3" />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-
-                  <View style={styles.modalActions}>
-                    {selectedNotice.attachment && (
-                      <TouchableOpacity
-                        style={[
-                          styles.modalActionButton,
-                          styles.downloadButton,
-                        ]}
-                        onPress={() => handleDownloadAttachment(selectedNotice)}
-                      >
-                        <Icon
-                          name="download"
-                          size={16}
-                          color="#fff"
-                          style={styles.buttonIcon}
-                        />
-                        <Text style={styles.buttonText}>
-                          Download Attachment
-                        </Text>
+                      <Text style={styles.sectionTitle}>Attachment</Text>
+                      <TouchableOpacity style={styles.attachmentButton} onPress={() => handleDownloadAttachment(selectedNotice)}>
+                        <Icon name="file-document-outline" size={20} color="#3b82f6" />
+                        <Text style={styles.attachmentButtonText}>{selectedNotice.attachment}</Text>
+                        <Icon name="download" size={18} color="#94a3b8" style={{ marginLeft: 'auto' }} />
                       </TouchableOpacity>
-                    )}
-                  </View>
-                </>
+                    </View>
+                  )}
+                </View>
               )}
             </ScrollView>
           </View>
@@ -461,156 +366,160 @@ const NoticeBoardScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8fafc',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8fafc',
   },
   loadingText: {
-    marginTop: 10,
-    color: '#666',
+    marginTop: 12,
+    color: '#64748b',
     fontSize: 16,
   },
   header: {
-    backgroundColor: '#FF751F', // Brand Orange
-    padding: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    paddingVertical: 20,
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#FF751F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FF751F',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    margin: 15,
-    paddingHorizontal: 15,
-    borderRadius: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 16,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    height: 48,
   },
   searchIcon: {
-    marginRight: 10,
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     color: '#333',
-    paddingVertical: 12,
   },
   filterContainer: {
-    paddingLeft: 15,
-    marginBottom: 10,
+    paddingLeft: 20,
   },
   filterContent: {
-    paddingRight: 15,
+    paddingRight: 20,
   },
   filterButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     backgroundColor: '#fff',
-    borderRadius: 20,
+    borderRadius: 24,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#e2e8f0',
   },
   filterButtonActive: {
-    backgroundColor: '#FF751F', // Brand Orange
+    backgroundColor: '#FF751F',
     borderColor: '#FF751F',
   },
   filterButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#666',
+    color: '#64748b',
   },
   filterButtonTextActive: {
     color: '#fff',
   },
   listContent: {
-    padding: 15,
     paddingBottom: 30,
   },
   noticeCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 16,
+    padding: 20,
+    marginHorizontal: 20,
+    marginBottom: 16,
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
   },
   cardHeader: {
+    marginBottom: 12,
+  },
+  headerTitleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
+    alignItems: 'center',
+    marginBottom: 8,
   },
   noticeTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
-    marginRight: 10,
+    fontWeight: '700',
+    color: '#1e293b',
+    lineHeight: 22,
   },
-  priorityBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+  noticecontent: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1e293b',
+    lineHeight: 22,
+    paddingTop: 10,
+  },
+  dateText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontWeight: '500',
   },
   cardBody: {
-    marginBottom: 12,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  icon: {
-    marginRight: 8,
-    width: 16,
-    textAlign: 'center',
+
   },
   categoryBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 6,
-    minWidth: 70,
-    alignItems: 'center',
+    borderRadius: 8,
   },
   categoryText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#666',
-    flex: 1,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   description: {
-    fontSize: 13,
-    color: '#757575',
-    marginTop: 8,
-    lineHeight: 18,
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 20,
+    marginBottom: 12,
   },
-  cardActions: {
+  footerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 12,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    paddingTop: 12,
+  },
+  authorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  authorText: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '500',
   },
   actionButton: {
     flexDirection: 'row',
@@ -622,20 +531,6 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
-  viewButton: {
-    backgroundColor: '#FF751F', // Brand Orange
-  },
-  downloadButton: {
-    backgroundColor: '#FF9800',
-  },
-  buttonIcon: {
-    marginRight: 6,
-  },
-  buttonText: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -643,125 +538,148 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    color: '#999',
+    color: '#1e293b',
     marginTop: 16,
     fontWeight: '600',
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#bbb',
+    color: '#94a3b8',
     marginTop: 8,
     textAlign: 'center',
   },
   retryButton: {
     marginTop: 20,
     backgroundColor: '#FF751F',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 24,
   },
   retryButtonText: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
-  modalContainer: {
+
+  // Modal Styles
+  modalOverlay: {
     flex: 1,
-    justifyContent: 'flex-end',
     backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '85%',
-    padding: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: '90%',
+    display: 'flex',
+    flexDirection: 'column',
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
+    justifyContent: 'space-between',
+    padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#f1f5f9',
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
-    marginRight: 10,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
   },
   closeButton: {
-    padding: 8,
+    padding: 4,
   },
   modalBody: {
-    marginBottom: 16,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalHeaderDetails: {
+    marginBottom: 24,
+  },
+  modalNoticeTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 8,
+    lineHeight: 28,
+  },
+  modalDate: {
+    fontSize: 14,
+    color: '#64748b',
   },
   modalSection: {
     marginBottom: 20,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
+  divider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginBottom: 20,
   },
-  detailRow: {
+  authorRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-    paddingVertical: 4,
   },
-  detailLabel: {
+  avatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  avatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  postedByLabel: {
+    fontSize: 12,
+    color: '#94a3b8',
+  },
+  postedByName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: '#1e293b',
   },
-  detailValue: {
-    fontSize: 14,
-    color: '#333',
-    flex: 1,
-    textAlign: 'right',
+  priorityBadge: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
   priorityText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 12,
   },
   modalDescription: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
+    fontSize: 15,
+    color: '#334155',
+    lineHeight: 24,
   },
-  attachmentInfo: {
+  attachmentButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f0f9ff',
+    borderWidth: 1,
+    borderColor: '#bae6fd',
+    borderRadius: 12,
     padding: 12,
-    borderRadius: 8,
   },
-  attachmentName: {
-    fontSize: 14,
-    color: '#333',
-    flex: 1,
-    marginLeft: 8,
-  },
-  downloadAttachmentButton: {
-    padding: 8,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  modalActionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
+  attachmentButtonText: {
+    fontSize: 15,
+    color: '#0369a1',
+    fontWeight: '500',
+    marginLeft: 12,
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,122 +9,30 @@ import {
   Alert,
   Modal,
   TextInput,
-  Picker,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import AuthService from '../services/AuthService';
+import AdminRequestService from '../services/AdminRequestService';
 
-// Sample request types
+// Request types mapping for the UI
 const requestTypes = [
-  {
-    id: '1',
-    name: 'Transfer Certificate',
-    icon: 'file-text',
-    description: 'Request for transfer certificate',
-  },
-  {
-    id: '2',
-    name: 'Bonafide Certificate',
-    icon: 'certificate',
-    description: 'Request for bonafide certificate',
-  },
-  {
-    id: '3',
-    name: 'ID Card',
-    icon: 'id-card',
-    description: 'Request for student ID card',
-  },
-  {
-    id: '4',
-    name: 'Character Certificate',
-    icon: 'star',
-    description: 'Request for character certificate',
-  },
-  {
-    id: '5',
-    name: 'Course Completion',
-    icon: 'check-circle',
-    description: 'Request for course completion certificate',
-  },
-  {
-    id: '6',
-    name: 'Migration Certificate',
-    icon: 'plane',
-    description: 'Request for migration certificate',
-  },
-  {
-    id: '7',
-    name: 'Conduct Certificate',
-    icon: 'thumbs-up',
-    description: 'Request for conduct certificate',
-  },
-  {
-    id: '8',
-    name: 'Other Document',
-    icon: 'file',
-    description: 'Request for other documents',
-  },
-];
-
-// Sample requests data
-const requestsData = [
-  {
-    id: '1',
-    documentType: 'Transfer Certificate',
-    reason: 'Transferring to another city',
-    details: 'Need transfer certificate for admission in new school',
-    urgency: 'High',
-    status: 'Approved',
-    submittedDate: '2024-01-20',
-    processedDate: '2024-01-22',
-    comments: 'Approved by principal. Will be ready in 2 days.',
-  },
-  {
-    id: '2',
-    documentType: 'ID Card',
-    reason: 'Lost my ID card',
-    details: 'Need replacement ID card for library access',
-    urgency: 'Medium',
-    status: 'Processing',
-    submittedDate: '2024-01-23',
-    processedDate: null,
-    comments: 'Under verification process',
-  },
-  {
-    id: '3',
-    documentType: 'Bonafide Certificate',
-    reason: 'Bank loan application',
-    details: 'Need bonafide certificate for education loan',
-    urgency: 'High',
-    status: 'Pending',
-    submittedDate: '2024-01-24',
-    processedDate: null,
-    comments: null,
-  },
-  {
-    id: '4',
-    documentType: 'Character Certificate',
-    reason: 'Job application',
-    details: 'Required for job application process',
-    urgency: 'Medium',
-    status: 'Completed',
-    submittedDate: '2024-01-15',
-    processedDate: '2024-01-18',
-    comments: 'Document ready for collection',
-  },
-  {
-    id: '5',
-    documentType: 'Course Completion',
-    reason: 'Higher studies',
-    details: 'Need course completion certificate for university admission',
-    urgency: 'High',
-    status: 'Rejected',
-    submittedDate: '2024-01-10',
-    processedDate: '2024-01-12',
-    comments: 'Please submit complete course records',
-  },
+  { id: 'leave', name: 'Leave Request', icon: 'clock-o', description: 'Request for leave of absence' },
+  { id: 'bonafide', name: 'Bonafide Certificate', icon: 'certificate', description: 'Request for bonafide certificate' },
+  { id: 'transfer', name: 'Transfer Certificate', icon: 'file-text', description: 'Request for transfer certificate' },
+  { id: 'idcard', name: 'ID Card Replacement', icon: 'id-card', description: 'Request for lost/damaged ID card' },
+  { id: 'character', name: 'Character Certificate', icon: 'star', description: 'Request for character certificate' },
+  { id: 'other', name: 'Other Request', icon: 'question-circle', description: 'Any other administrative request' },
 ];
 
 const AdminRequestScreen = () => {
+  const [user, setUser] = useState(null);
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // UI State
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -132,243 +40,222 @@ const AdminRequestScreen = () => {
   const [requestModalVisible, setRequestModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Form state
-  const [selectedDocumentType, setSelectedDocumentType] = useState('');
+  // Form State
+  const [selectedTypeObj, setSelectedTypeObj] = useState(null); // The selected type object from requestTypes
   const [reason, setReason] = useState('');
   const [details, setDetails] = useState('');
   const [urgency, setUrgency] = useState('Medium');
 
-  // Get unique document types for filter options
-  const documentTypes = useMemo(() => {
-    const uniqueTypes = [
-      'All',
-      ...new Set(requestsData.map(r => r.documentType)),
-    ];
-    return uniqueTypes;
+  useEffect(() => {
+    loadUserAndRequests();
   }, []);
+
+  const loadUserAndRequests = async () => {
+    try {
+      setLoading(true);
+      // Get user session
+      const session = await AuthService.getSession();
+      if (session && session.user) {
+        setUser(session.user);
+        await fetchRequests(session.user.userid || session.user.id);
+      } else {
+        // Handle unauthenticated state if necessary
+        Alert.alert('Error', 'User session not found. Please login again.');
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+      Alert.alert('Error', 'Failed to load requests');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Safe fetch function
+  const fetchRequests = async (studentId) => {
+    try {
+      if (!studentId) return;
+      const response = await AdminRequestService.getMyRequests(studentId);
+      if (response.success) {
+        setRequests(response.data || []);
+      } else {
+        console.error('Failed to fetch requests:', response.error);
+        // Don't alert on initial load if just empty/error, maybe quiet fail or retry
+      }
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    if (user) {
+      fetchRequests(user.userid || user.id).then(() => setRefreshing(false));
+    } else {
+      loadUserAndRequests();
+    }
+  };
 
   // Filter and search requests
   const filteredRequests = useMemo(() => {
-    let filtered = requestsData;
+    let filtered = requests || [];
 
     // Apply status filter
     if (selectedFilter !== 'All') {
-      filtered = filtered.filter(request => request.status === selectedFilter);
+      filtered = filtered.filter(req =>
+        req.status && req.status.toLowerCase() === selectedFilter.toLowerCase()
+      );
     }
 
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        request =>
-          request.documentType.toLowerCase().includes(query) ||
-          request.reason.toLowerCase().includes(query) ||
-          request.status.toLowerCase().includes(query),
+      filtered = filtered.filter(req =>
+        (req.request_type && req.request_type.toLowerCase().includes(query)) ||
+        (req.title && req.title.toLowerCase().includes(query)) ||
+        (req.description && req.description.toLowerCase().includes(query))
       );
     }
 
-    return filtered;
-  }, [selectedFilter, searchQuery]);
+    // Sort by date descending (newest first)
+    return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }, [requests, selectedFilter, searchQuery]);
 
-  // Get status color
-  const getStatusColor = status => {
-    switch (status) {
-      case 'Pending':
-        return '#FF9800'; // Orange
-      case 'Processing':
-        return '#2196F3'; // Blue
-      case 'Approved':
-        return '#4CAF50'; // Green
-      case 'Completed':
-        return '#4CAF50'; // Green
-      case 'Rejected':
-        return '#F44336'; // Red
-      default:
-        return '#757575'; // Gray
+  // Helpers for UI
+  const getStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'approved': return '#4CAF50';
+      case 'rejected': return '#F44336';
+      case 'pending': return '#FF9800';
+      default: return '#757575';
     }
   };
 
-  // Get urgency color
-  const getUrgencyColor = urgency => {
-    switch (urgency) {
-      case 'High':
-        return '#F44336'; // Red
-      case 'Medium':
-        return '#FF9800'; // Orange
-      case 'Low':
-        return '#4CAF50'; // Green
-      default:
-        return '#757575'; // Gray
+  const getStatusIcon = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'approved': return 'check-circle';
+      case 'rejected': return 'times-circle';
+      case 'pending': return 'clock-o';
+      default: return 'question-circle';
     }
   };
 
-  // Get status icon
-  const getStatusIcon = status => {
-    switch (status) {
-      case 'Pending':
-        return 'clock-o';
-      case 'Processing':
-        return 'cogs';
-      case 'Approved':
-        return 'check-circle';
-      case 'Completed':
-        return 'check-circle';
-      case 'Rejected':
-        return 'times-circle';
-      default:
-        return 'question-circle';
+  const getUrgencyColor = (urgencyLvl) => {
+    switch (urgencyLvl?.toLowerCase()) {
+      case 'high': return '#F44336';
+      case 'medium': return '#FF9800';
+      case 'low': return '#4CAF50';
+      default: return '#757575';
     }
   };
 
-  // Handle view request details
-  const handleViewDetails = request => {
+  // Actions
+  const handleViewDetails = (request) => {
     setSelectedRequest(request);
     setModalVisible(true);
   };
 
-  // Handle new request
   const handleNewRequest = () => {
-    setSelectedDocumentType('');
+    setSelectedTypeObj(null);
     setReason('');
     setDetails('');
     setUrgency('Medium');
     setRequestModalVisible(true);
   };
 
-  // Handle submit request
-  const handleConfirmSubmit = () => {
-    if (!selectedDocumentType) {
-      Alert.alert('Error', 'Please select a document type.');
+  const handleConfirmSubmit = async () => {
+    if (!selectedTypeObj) {
+      Alert.alert('Error', 'Please select a request type');
+      return;
+    }
+    if (!reason.trim()) {
+      Alert.alert('Error', 'Please enter a reason/title');
       return;
     }
 
-    if (!reason.trim()) {
-      Alert.alert('Error', 'Please enter a reason for the request.');
+    if (!user) {
+      Alert.alert('Error', 'User not identified');
       return;
     }
 
     setIsSubmitting(true);
 
-    // Simulate submission process
-    setTimeout(() => {
+    try {
+      const payload = {
+        request_type: selectedTypeObj.name, // Sending readable name for now, or use ID
+        title: reason,
+        description: details,
+        requester_id: user.userid || user.id,
+        requester_name: user.name || 'Student',
+        requester_role: 'student',
+        metadata: {
+          urgency: urgency,
+          type_id: selectedTypeObj.id,
+          // Add other student details if needed
+        }
+      };
+
+      const response = await AdminRequestService.createRequest(payload);
+
+      if (response.success) {
+        Alert.alert('Success', 'Request submitted successfully');
+        setRequestModalVisible(false);
+        onRefresh(); // Reload list
+      } else {
+        Alert.alert('Error', response.error || 'Failed to submit request');
+      }
+    } catch (error) {
+      console.error('Submit error:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
+    } finally {
       setIsSubmitting(false);
-      setRequestModalVisible(false);
-      Alert.alert('Success', 'Request submitted successfully!', [
-        { text: 'OK', style: 'default' },
-      ]);
-    }, 1500);
+    }
   };
 
-  // Handle cancel request
-  const handleCancelRequest = () => {
-    setRequestModalVisible(false);
-  };
+  // Render Items
+  const renderRequestCard = ({ item }) => (
+    <TouchableOpacity
+      style={styles.requestCard}
+      onPress={() => handleViewDetails(item)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.cardHeader}>
+        <Text style={styles.requestTitle}>{item.request_type || item.title}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+          <Icon name={getStatusIcon(item.status)} size={12} color="#fff" />
+          <Text style={styles.statusText}>{item.status}</Text>
+        </View>
+      </View>
 
-  // Render request card
-  const renderRequestCard = ({ item }) => {
-    return (
-      <TouchableOpacity
-        style={styles.requestCard}
-        onPress={() => handleViewDetails(item)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.cardHeader}>
-          <Text style={styles.requestTitle}>{item.documentType}</Text>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: getStatusColor(item.status) },
-            ]}
-          >
-            <Icon name={getStatusIcon(item.status)} size={12} color="#fff" />
-            <Text style={styles.statusText}>{item.status}</Text>
-          </View>
+      <View style={styles.cardBody}>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoText} numberOfLines={1}>{item.title}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Icon name="calendar" size={14} color="#666" style={styles.icon} />
+          <Text style={styles.infoText}>
+            {new Date(item.created_at).toLocaleDateString()}
+          </Text>
         </View>
 
-        <View style={styles.cardBody}>
+        {item.metadata?.urgency && (
           <View style={styles.infoRow}>
-            <Icon
-              name="info-circle"
-              size={14}
-              color="#666"
-              style={styles.icon}
-            />
-            <Text style={styles.infoText}>{item.reason}</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Icon name="calendar" size={14} color="#666" style={styles.icon} />
-            <Text style={styles.infoText}>Submitted: {item.submittedDate}</Text>
-          </View>
-
-          {item.processedDate && (
-            <View style={styles.infoRow}>
-              <Icon
-                name="calendar-check"
-                size={14}
-                color="#666"
-                style={styles.icon}
-              />
-              <Text style={styles.infoText}>
-                Processed: {item.processedDate}
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.infoRow}>
-            <Icon
-              name="exclamation-triangle"
-              size={14}
-              color="#666"
-              style={styles.icon}
-            />
-            <Text
-              style={[
-                styles.infoText,
-                { color: getUrgencyColor(item.urgency) },
-              ]}
-            >
-              Urgency: {item.urgency}
+            <Text style={[styles.infoText, { color: getUrgencyColor(item.metadata.urgency), fontWeight: 'bold' }]}>
+              {item.metadata.urgency} Priority
             </Text>
           </View>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
 
-          {item.comments && (
-            <View style={styles.infoRow}>
-              <Icon name="comment" size={14} color="#666" style={styles.icon} />
-              <Text style={styles.infoText}>{item.comments}</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.cardActions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.viewButton]}
-            onPress={() => handleViewDetails(item)}
-          >
-            <Icon name="eye" size={14} color="#fff" style={styles.buttonIcon} />
-            <Text style={styles.buttonText}>View Details</Text>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  // Render filter button
-  const renderFilterButton = filter => (
+  const renderFilterButton = (filter) => (
     <TouchableOpacity
       key={filter}
-      style={[
-        styles.filterButton,
-        selectedFilter === filter && styles.filterButtonActive,
-      ]}
+      style={[styles.filterButton, selectedFilter === filter && styles.filterButtonActive]}
       onPress={() => setSelectedFilter(filter)}
     >
-      <Text
-        style={[
-          styles.filterButtonText,
-          selectedFilter === filter && styles.filterButtonTextActive,
-        ]}
-      >
+      <Text style={[styles.filterButtonText, selectedFilter === filter && styles.filterButtonTextActive]}>
         {filter}
       </Text>
     </TouchableOpacity>
@@ -378,707 +265,233 @@ const AdminRequestScreen = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Document Requests</Text>
-        <TouchableOpacity
-          style={styles.newRequestButton}
-          onPress={handleNewRequest}
-        >
+        <Text style={styles.headerTitle}>My Requests</Text>
+        <TouchableOpacity style={styles.newRequestButton} onPress={handleNewRequest}>
           <Icon name="plus" size={16} color="#fff" />
-          <Text style={styles.newRequestButtonText}>New Request</Text>
+          <Text style={styles.newRequestButtonText}>New</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
+      {/* Search */}
       <View style={styles.searchContainer}>
         <Icon name="search" size={18} color="#666" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search requests..."
+          placeholder="Search my requests..."
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholderTextColor="#999"
         />
       </View>
 
-      {/* Filter Buttons */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterContainer}
-        contentContainerStyle={styles.filterContent}
-      >
-        {[
-          'All',
-          'Pending',
-          'Processing',
-          'Approved',
-          'Completed',
-          'Rejected',
-        ].map(renderFilterButton)}
-      </ScrollView>
+      {/* Filters */}
+      <View style={{ height: 50 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContent}>
+          {['All', 'Pending', 'Approved', 'Rejected'].map(renderFilterButton)}
+        </ScrollView>
+      </View>
 
-      {/* Requests List */}
-      <FlatList
-        data={filteredRequests}
-        renderItem={renderRequestCard}
-        keyExtractor={item => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Icon name="inbox" size={60} color="#ccc" />
-            <Text style={styles.emptyText}>No requests found</Text>
-            <Text style={styles.emptySubtext}>
-              {selectedFilter === 'All' && !searchQuery
-                ? 'Requests will appear here'
-                : 'Try adjusting your filters'}
-            </Text>
-          </View>
-        }
-      />
+      {/* Content */}
+      {loading ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#E91E63" />
+        </View>
+      ) : (
+        <FlatList
+          data={filteredRequests}
+          renderItem={renderRequestCard}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Icon name="inbox" size={50} color="#ccc" />
+              <Text style={styles.emptyText}>No requests found</Text>
+            </View>
+          }
+        />
+      )}
 
-      {/* Request Detail Modal */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalVisible(false)}
-      >
+      {/* Detail Modal */}
+      <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {selectedRequest && (
-                <>
-                  <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>
-                      {selectedRequest.documentType}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => setModalVisible(false)}
-                      style={styles.closeButton}
-                    >
-                      <Icon name="times" size={20} color="#666" />
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.modalBody}>
-                    <View style={styles.modalSection}>
-                      <Text style={styles.sectionTitle}>Request Details</Text>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Document Type:</Text>
-                        <Text style={styles.detailValue}>
-                          {selectedRequest.documentType}
-                        </Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Reason:</Text>
-                        <Text style={styles.detailValue}>
-                          {selectedRequest.reason}
-                        </Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Status:</Text>
-                        <View
-                          style={[
-                            styles.statusBadge,
-                            {
-                              backgroundColor: getStatusColor(
-                                selectedRequest.status,
-                              ),
-                            },
-                          ]}
-                        >
-                          <Icon
-                            name={getStatusIcon(selectedRequest.status)}
-                            size={12}
-                            color="#fff"
-                          />
-                          <Text style={styles.statusText}>
-                            {selectedRequest.status}
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Urgency:</Text>
-                        <Text
-                          style={[
-                            styles.detailValue,
-                            { color: getUrgencyColor(selectedRequest.urgency) },
-                          ]}
-                        >
-                          {selectedRequest.urgency}
-                        </Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Submitted:</Text>
-                        <Text style={styles.detailValue}>
-                          {selectedRequest.submittedDate}
-                        </Text>
-                      </View>
-                      {selectedRequest.processedDate && (
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>Processed:</Text>
-                          <Text style={styles.detailValue}>
-                            {selectedRequest.processedDate}
-                          </Text>
-                        </View>
-                      )}
+            {selectedRequest && (
+              <>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>{selectedRequest.request_type}</Text>
+                  <TouchableOpacity onPress={() => setModalVisible(false)}>
+                    <Icon name="times" size={20} color="#666" />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={styles.modalBody}>
+                  <View style={styles.modalSection}>
+                    <Text style={styles.sectionTitle}>Status</Text>
+                    <View style={[styles.statusBadge, { alignSelf: 'flex-start', backgroundColor: getStatusColor(selectedRequest.status) }]}>
+                      <Text style={styles.statusText}>{selectedRequest.status}</Text>
                     </View>
+                  </View>
 
+                  <View style={styles.modalSection}>
+                    <Text style={styles.sectionTitle}>Title/Reason</Text>
+                    <Text style={styles.detailValue}>{selectedRequest.title}</Text>
+                  </View>
+
+                  {selectedRequest.description ? (
                     <View style={styles.modalSection}>
-                      <Text style={styles.sectionTitle}>
-                        Additional Details
-                      </Text>
-                      <Text style={styles.modalDescription}>
-                        {selectedRequest.details}
-                      </Text>
+                      <Text style={styles.sectionTitle}>Description</Text>
+                      <Text style={styles.detailValue}>{selectedRequest.description}</Text>
                     </View>
+                  ) : null}
 
-                    {selectedRequest.comments && (
-                      <View style={styles.modalSection}>
-                        <Text style={styles.sectionTitle}>Admin Comments</Text>
-                        <Text style={styles.modalDescription}>
-                          {selectedRequest.comments}
-                        </Text>
-                      </View>
-                    )}
+                  <View style={styles.modalSection}>
+                    <Text style={styles.sectionTitle}>Date</Text>
+                    <Text style={styles.detailValue}>{new Date(selectedRequest.created_at).toLocaleString()}</Text>
                   </View>
 
-                  <View style={styles.modalActions}>
-                    <TouchableOpacity
-                      style={[
-                        styles.modalActionButton,
-                        styles.closeModalButton,
-                      ]}
-                      onPress={() => setModalVisible(false)}
-                    >
-                      <Icon
-                        name="times"
-                        size={16}
-                        color="#fff"
-                        style={styles.buttonIcon}
-                      />
-                      <Text style={styles.buttonText}>Close</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
-            </ScrollView>
+                  {selectedRequest.rejection_reason && (
+                    <View style={styles.modalSection}>
+                      <Text style={[styles.sectionTitle, { color: '#F44336' }]}>Rejection Reason</Text>
+                      <Text style={styles.detailValue}>{selectedRequest.rejection_reason}</Text>
+                    </View>
+                  )}
+                </ScrollView>
+              </>
+            )}
           </View>
         </View>
       </Modal>
 
       {/* New Request Modal */}
-      <Modal
-        visible={requestModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setRequestModalVisible(false)}
-      >
+      <Modal visible={requestModalVisible} animationType="slide" transparent onRequestClose={() => setRequestModalVisible(false)}>
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>New Document Request</Text>
-                <TouchableOpacity
-                  onPress={() => setRequestModalVisible(false)}
-                  style={styles.closeButton}
-                >
-                  <Icon name="times" size={20} color="#666" />
-                </TouchableOpacity>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>New Request</Text>
+              <TouchableOpacity onPress={() => setRequestModalVisible(false)}>
+                <Icon name="times" size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {/* Type Selection */}
+              <Text style={styles.inputLabel}>Request Type</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeScroll}>
+                {requestTypes.map(type => (
+                  <TouchableOpacity
+                    key={type.id}
+                    style={[styles.typeCard, selectedTypeObj?.id === type.id && styles.typeCardActive]}
+                    onPress={() => setSelectedTypeObj(type)}
+                  >
+                    <Icon name={type.icon} size={20} color={selectedTypeObj?.id === type.id ? '#fff' : '#666'} />
+                    <Text style={[styles.typeCardText, selectedTypeObj?.id === type.id && styles.typeCardTextActive]}>
+                      {type.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <Text style={styles.inputLabel}>Title / Main Reason</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Short title for your request"
+                value={reason}
+                onChangeText={setReason}
+              />
+
+              <Text style={styles.inputLabel}>Detailed Description</Text>
+              <TextInput
+                style={[styles.textInput, { height: 80, textAlignVertical: 'top' }]}
+                placeholder="Explain your request in detail..."
+                multiline
+                numberOfLines={4}
+                value={details}
+                onChangeText={setDetails}
+              />
+
+              <Text style={styles.inputLabel}>Urgency</Text>
+              <View style={styles.urgencyRow}>
+                {['Low', 'Medium', 'High'].map(lvl => (
+                  <TouchableOpacity
+                    key={lvl}
+                    style={[styles.urgencyBtn, urgency === lvl && { backgroundColor: getUrgencyColor(lvl), borderColor: getUrgencyColor(lvl) }]}
+                    onPress={() => setUrgency(lvl)}
+                  >
+                    <Text style={[styles.urgencyBtnText, urgency === lvl && { color: '#fff' }]}>{lvl}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
 
-              <View style={styles.modalBody}>
-                <View style={styles.modalSection}>
-                  <Text style={styles.sectionTitle}>Document Type</Text>
-                  <Text style={styles.inputLabel}>Select document type:</Text>
-                  <ScrollView style={styles.documentTypeList}>
-                    {requestTypes.map(type => (
-                      <TouchableOpacity
-                        key={type.id}
-                        style={[
-                          styles.documentTypeItem,
-                          selectedDocumentType === type.name &&
-                            styles.documentTypeItemActive,
-                        ]}
-                        onPress={() => setSelectedDocumentType(type.name)}
-                      >
-                        <Icon name={type.icon} size={16} color="#666" />
-                        <Text style={styles.documentTypeText}>{type.name}</Text>
-                        {selectedDocumentType === type.name && (
-                          <Icon name="check-circle" size={16} color="#4CAF50" />
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-
-                <View style={styles.modalSection}>
-                  <Text style={styles.sectionTitle}>Request Details</Text>
-                  <Text style={styles.inputLabel}>Reason for request:</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="e.g., Bank loan, Admission, Job application"
-                    value={reason}
-                    onChangeText={setReason}
-                    placeholderTextColor="#999"
-                  />
-                </View>
-
-                <View style={styles.modalSection}>
-                  <Text style={styles.inputLabel}>
-                    Additional details (optional):
-                  </Text>
-                  <TextInput
-                    style={[styles.textInput, { height: 100 }]}
-                    multiline
-                    numberOfLines={4}
-                    placeholder="Provide any additional information..."
-                    value={details}
-                    onChangeText={setDetails}
-                    placeholderTextColor="#999"
-                  />
-                </View>
-
-                <View style={styles.modalSection}>
-                  <Text style={styles.sectionTitle}>Urgency Level</Text>
-                  <View style={styles.urgencyButtons}>
-                    <TouchableOpacity
-                      style={[
-                        styles.urgencyButton,
-                        urgency === 'High' && styles.urgencyButtonHigh,
-                      ]}
-                      onPress={() => setUrgency('High')}
-                    >
-                      <Text
-                        style={[
-                          styles.urgencyButtonText,
-                          urgency === 'High' && styles.urgencyButtonTextActive,
-                        ]}
-                      >
-                        High
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.urgencyButton,
-                        urgency === 'Medium' && styles.urgencyButtonMedium,
-                      ]}
-                      onPress={() => setUrgency('Medium')}
-                    >
-                      <Text
-                        style={[
-                          styles.urgencyButtonText,
-                          urgency === 'Medium' &&
-                            styles.urgencyButtonTextActive,
-                        ]}
-                      >
-                        Medium
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.urgencyButton,
-                        urgency === 'Low' && styles.urgencyButtonLow,
-                      ]}
-                      onPress={() => setUrgency('Low')}
-                    >
-                      <Text
-                        style={[
-                          styles.urgencyButtonText,
-                          urgency === 'Low' && styles.urgencyButtonTextActive,
-                        ]}
-                      >
-                        Low
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={[styles.modalActionButton, styles.cancelButton]}
-                  onPress={handleCancelRequest}
-                >
-                  <Icon
-                    name="times"
-                    size={16}
-                    color="#fff"
-                    style={styles.buttonIcon}
-                  />
-                  <Text style={styles.buttonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalActionButton, styles.submitButton]}
-                  onPress={handleConfirmSubmit}
-                  disabled={isSubmitting}
-                >
-                  <Icon
-                    name="check"
-                    size={16}
-                    color="#fff"
-                    style={styles.buttonIcon}
-                  />
-                  <Text style={styles.buttonText}>
-                    {isSubmitting ? 'Submitting...' : 'Submit Request'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[styles.submitButton, isSubmitting && { opacity: 0.7 }]}
+                onPress={handleConfirmSubmit}
+                disabled={isSubmitting}
+              >
+                <Text style={styles.submitButtonText}>
+                  {isSubmitting ? 'Submitting...' : 'Submit Request'}
+                </Text>
+              </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
       </Modal>
+
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    backgroundColor: '#E91E63',
-    padding: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  newRequestButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-  },
-  newRequestButtonText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    margin: 15,
-    paddingHorizontal: 15,
-    borderRadius: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
-    paddingVertical: 12,
-  },
-  filterContainer: {
-    paddingLeft: 15,
-    marginBottom: 10,
-  },
-  filterContent: {
-    paddingRight: 15,
-  },
-  filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  filterButtonActive: {
-    backgroundColor: '#E91E63',
-    borderColor: '#E91E63',
-  },
-  filterButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  filterButtonTextActive: {
-    color: '#fff',
-  },
-  listContent: {
-    padding: 15,
-    paddingBottom: 30,
-  },
-  requestCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  requestTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
-    marginRight: 10,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    minWidth: 70,
-    gap: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  cardBody: {
-    marginBottom: 12,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  icon: {
-    marginRight: 8,
-    width: 16,
-    textAlign: 'center',
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#666',
-    flex: 1,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 12,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    flex: 1,
-    marginRight: 8,
-  },
-  viewButton: {
-    backgroundColor: '#2196F3',
-  },
-  submitButton: {
-    backgroundColor: '#4CAF50',
-  },
-  cancelButton: {
-    backgroundColor: '#F44336',
-  },
-  closeModalButton: {
-    backgroundColor: '#757575',
-  },
-  buttonIcon: {
-    marginRight: 6,
-  },
-  buttonText: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
-  },
-  emptyText: {
-    fontSize: 18,
-    color: '#999',
-    marginTop: 16,
-    fontWeight: '600',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#bbb',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '85%',
-    padding: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
-    marginRight: 10,
-  },
-  closeButton: {
-    padding: 8,
-  },
-  modalBody: {
-    marginBottom: 16,
-  },
-  modalSection: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-    paddingVertical: 4,
-  },
-  detailLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  detailValue: {
-    fontSize: 14,
-    color: '#333',
-    flex: 1,
-    textAlign: 'right',
-  },
-  modalDescription: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  modalActionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 8,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    color: '#333',
-    backgroundColor: '#fff',
-    textAlignVertical: 'top',
-  },
-  documentTypeList: {
-    maxHeight: 200,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    backgroundColor: '#fff',
-  },
-  documentTypeItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    gap: 10,
-  },
-  documentTypeItemActive: {
-    backgroundColor: '#f0f8ff',
-    borderBottomColor: '#2196F3',
-  },
-  documentTypeText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#333',
-  },
-  urgencyButtons: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  urgencyButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  urgencyButtonHigh: {
-    backgroundColor: '#F44336',
-    borderColor: '#F44336',
-  },
-  urgencyButtonMedium: {
-    backgroundColor: '#FF9800',
-    borderColor: '#FF9800',
-  },
-  urgencyButtonLow: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
-  },
-  urgencyButtonText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#666',
-  },
-  urgencyButtonTextActive: {
-    color: '#fff',
-  },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  header: { padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#FF751F' },
+  newRequestButton: { flexDirection: 'row', backgroundColor: '#FF751F', padding: 8, borderRadius: 20, alignItems: 'center' },
+  newRequestButtonText: { color: '#fff', fontWeight: 'bold', marginLeft: 5 },
+  searchContainer: { flexDirection: 'row', backgroundColor: '#fff', margin: 15, padding: 10, borderRadius: 10, alignItems: 'center' },
+  searchIcon: { marginRight: 10 },
+  searchInput: { flex: 1, color: '#333' },
+  filterContent: { paddingHorizontal: 15, alignItems: 'center' },
+  filterButton: { paddingHorizontal: 15, paddingVertical: 6, borderRadius: 20, backgroundColor: '#e0e0e0', marginRight: 10, height: 32, justifyContent: 'center' },
+  filterButtonActive: { backgroundColor: '#FF751F' },
+  filterButtonText: { color: '#333' },
+  filterButtonTextActive: { color: '#fff' },
+  listContent: { padding: 15 },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyContainer: { alignItems: 'center', marginTop: 50 },
+  emptyText: { marginTop: 10, color: '#999', fontSize: 16 },
+
+  // Card
+  requestCard: { backgroundColor: '#fff', borderRadius: 10, padding: 15, marginBottom: 10, elevation: 2 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  requestTitle: { fontWeight: 'bold', fontSize: 16, color: '#333', flex: 1 },
+  statusBadge: { flexDirection: 'row', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, alignItems: 'center' },
+  statusText: { color: '#fff', fontSize: 12, marginLeft: 4, fontWeight: 'bold' },
+  infoRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  icon: { marginRight: 6, width: 14, textAlign: 'center' },
+  infoText: { color: '#666', fontSize: 14 },
+
+  // Modal
+  modalContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: '#fff', borderRadius: 15, maxHeight: '80%', paddingBottom: 20 },
+  modalHeader: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
+  modalBody: { padding: 15 },
+  modalSection: { marginBottom: 15 },
+  sectionTitle: { fontSize: 14, color: '#999', marginBottom: 5 },
+  detailValue: { fontSize: 16, color: '#333' },
+
+  // Form
+  inputLabel: { fontWeight: 'bold', marginTop: 10, marginBottom: 5, color: '#333' },
+  textInput: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, backgroundColor: '#f9f9f9', color: '#333' },
+  typeScroll: { flexDirection: 'row', marginBottom: 10 },
+  typeCard: { width: 100, height: 80, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginRight: 10, padding: 5 },
+  typeCardActive: { backgroundColor: '#E91E63', borderColor: '#E91E63' },
+  typeCardText: { fontSize: 12, textAlign: 'center', marginTop: 5, color: '#666' },
+  typeCardTextActive: { color: '#fff' },
+  urgencyRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 },
+  urgencyBtn: { flex: 1, padding: 10, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, alignItems: 'center', marginHorizontal: 2 },
+  urgencyBtnText: { fontWeight: 'bold', color: '#666' },
+  submitButton: { backgroundColor: '#E91E63', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 20 },
+  submitButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 });
 
 export default AdminRequestScreen;
