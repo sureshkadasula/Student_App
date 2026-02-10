@@ -8,6 +8,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
+import { EyeIcon, EyeOffIcon } from '../components/Icons';
 import AuthService from '../services/AuthService';
 
 const LoginScreen = ({ setIsLoggedIn }) => {
@@ -33,7 +34,7 @@ const LoginScreen = ({ setIsLoggedIn }) => {
   return (
     <View style={styles.container}>
       <Image
-        source={require('../assets/images/app-logo.png')}
+        source={require('../assets/images/360-big.png')}
         style={styles.logo}
       />
       <Text style={styles.title}>Student Portal Login</Text>
@@ -44,20 +45,30 @@ const LoginScreen = ({ setIsLoggedIn }) => {
         onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
+        selectionColor="#FF751F"
       />
-      <View style={styles.inputContainer}>
+      <View style={styles.passwordContainer}>
         <TextInput
-          style={styles.input}
+          key={showPassword ? 'visible' : 'hidden'}
+          style={styles.passwordInput}
           placeholder="Password"
           value={password}
           onChangeText={setPassword}
           secureTextEntry={!showPassword}
+          autoCapitalize="none"
         />
+
+
         <TouchableOpacity
-          style={styles.eyeButton}
+          style={styles.eyeIconButton}
           onPress={() => setShowPassword(!showPassword)}
+          activeOpacity={0.7}
         >
-          <Text style={styles.eyeText}>{showPassword ? '🙈' : '👁️'}</Text>
+          {showPassword ? (
+            <EyeIcon size={22} color="#7b7676" />
+          ) : (
+            <EyeOffIcon size={22} color="#7b7676" />
+          )}
         </TouchableOpacity>
       </View>
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
@@ -75,10 +86,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   logo: {
-    width: 300,
-    height: 160,
+    width: 280,
+    height: 105,
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: 40,
   },
   title: {
     fontSize: 24,
@@ -86,10 +97,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 30,
     color: '#FF751F',
-  },
-  inputContainer: {
-    marginBottom: 15,
-    marginTop: 15,
   },
   input: {
     height: 50,
@@ -99,13 +106,32 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     backgroundColor: '#fff',
   },
-  eyeButton: {
-    position: 'absolute',
-    right: 10,
-    top: 10,
+  passwordContainer: {
+    position: 'relative',
+    marginTop: 15,
+    marginBottom: 15,
   },
-  eyeText: {
-    fontSize: 20,
+  passwordInput: {
+    height: 50,
+    borderColor: '#7b7676',
+    borderWidth: 2,
+    paddingHorizontal: 15,
+    paddingRight: 50,
+    borderRadius: 25,
+    backgroundColor: '#fff',
+    fontSize: 16,
+    color: '#000',
+    placeholderTextColor: '#999',
+  },
+  eyeIconButton: {
+    position: 'absolute',
+    right: 15,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 40,
+    height: 50,
   },
   button: {
     backgroundColor: '#FF751F',

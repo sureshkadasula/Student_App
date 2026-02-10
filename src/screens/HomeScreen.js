@@ -46,7 +46,6 @@ const HomeScreen = () => {
     { name: 'Notice Board', icon: 'bullhorn', screen: 'Notice Board' },
     { name: 'Profile', icon: 'user', screen: 'Profile' },
     { name: 'Transport', icon: 'bus', screen: 'Transport' },
-    { name: 'Analytics', icon: 'bar-chart', screen: 'Analytics' },
   ];
 
   // ✅ TRUE INFINITE MARQUEE (width-aware)

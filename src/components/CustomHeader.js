@@ -9,16 +9,16 @@ const CustomHeader = () => {
     return (
         <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.openDrawer()}>
-                <Icon name="bars" size={20} color="#000" />
+                <Icon name="bars" size={24} color="#000" />
             </TouchableOpacity>
 
             <Image
-                source={require('../assets/images/app-logo.png')}
+                source={require('../assets/images/360-big.png')}
                 style={styles.logo}
             />
 
-            <TouchableOpacity>
-                <Icon name="bell" size={20} color="#000" />
+            <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
+                <Icon name="bell" size={21} color="#000" />
             </TouchableOpacity>
         </View>
     );
@@ -40,8 +40,8 @@ const styles = StyleSheet.create({
         marginTop: 0, // Ensure no margin at top
     },
     logo: {
-        width: 160,
-        height: 140,
+        width: 140,
+        height: 120,
         resizeMode: 'contain',
     },
 });

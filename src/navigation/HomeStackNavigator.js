@@ -16,6 +16,7 @@ import TransportScreen from '../screens/TransportScreen';
 import HostelScreen from '../screens/HostelScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
 import RequestCertificateManagementScreen from '../screens/RequestCertificateManagementScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 import CustomHeader from '../components/CustomHeader';
 
 const Stack = createNativeStackNavigator();
@@ -54,6 +55,13 @@ const HomeStackNavigator = () => {
       <Stack.Screen
         name="Request & Certificate Management"
         component={RequestCertificateManagementScreen}
+      />
+      <Stack.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{
+          headerShown: false,
+        }}
       />
     </Stack.Navigator>
   );

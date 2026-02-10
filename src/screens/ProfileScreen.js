@@ -90,23 +90,17 @@ const ProfileScreen = ({ setIsLoggedIn, navigation }) => {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* HEADER SECTION */}
       <View style={styles.header}>
-        <View style={styles.coverWrapper}>
+        <View style={styles.coverWrapper} pointerEvents="box-none">
           <Image
             source={avatarUri ? { uri: avatarUri } : require('../assets/images/app-logo.png')}
             style={styles.coverImage}
             blurRadius={2}
           />
-          <View style={styles.overlay} />
+          <View style={styles.overlay} pointerEvents="none" />
 
-          {/* Top Toolbar */}
+          {/* Top Toolbar - Must be AFTER overlay to be on top */}
           <View style={styles.topToolbar}>
-            <TouchableOpacity onPress={() => navigation.openDrawer()}>
-              <Icon name="bars" size={24} color="#fff" />
-            </TouchableOpacity>
             <Text style={styles.headerTitle}>PROFILE</Text>
-            <TouchableOpacity>
-              <Icon name="bell" size={20} color="#fff" />
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -176,12 +170,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
     zIndex: 10,
   },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold', letterSpacing: 1 },
+  iconButton: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
   avatarContainer: { marginTop: -50, alignItems: 'center' },
   avatarWrapper: { position: 'relative' },

@@ -1,6 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ProfileScreen from '../screens/ProfileScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -18,6 +19,13 @@ const ProfileStackNavigator = ({ setIsLoggedIn }) => {
       <Stack.Screen name="Profile">
         {props => <ProfileScreen {...props} setIsLoggedIn={setIsLoggedIn} />}
       </Stack.Screen>
+      <Stack.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack.Navigator>
   );
 };

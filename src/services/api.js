@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config/api';
 
 /**
@@ -7,11 +8,29 @@ import { API_BASE_URL } from '../config/api';
  * @returns {Promise<{success: boolean, data: any, error: string, status: number}>}
  */
 export const request = async (endpoint, options = {}) => {
-    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+    let url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+
+    if (options.params) {
+        const queryParams = new URLSearchParams(options.params).toString();
+        url += `?${queryParams}`;
+    }
 
     const defaultHeaders = {
         'Content-Type': 'application/json',
     };
+
+    // Inject Auth Token if available
+    try {
+        const session = await AsyncStorage.getItem('auth_session');
+        if (session) {
+            const { token } = JSON.parse(session);
+            if (token) {
+                defaultHeaders['Authorization'] = `Bearer ${token}`;
+            }
+        }
+    } catch (error) {
+        console.warn('[API] Error reading auth token:', error);
+    }
 
     const config = {
         ...options,
@@ -64,3 +83,12 @@ export const request = async (endpoint, options = {}) => {
         };
     }
 };
+
+const api = {
+    get: (endpoint, options = {}) => request(endpoint, { ...options, method: 'GET' }),
+    post: (endpoint, body, options = {}) => request(endpoint, { ...options, method: 'POST', body: JSON.stringify(body) }),
+    put: (endpoint, body, options = {}) => request(endpoint, { ...options, method: 'PUT', body: JSON.stringify(body) }),
+    delete: (endpoint, options = {}) => request(endpoint, { ...options, method: 'DELETE' }),
+};
+
+export default api;
