@@ -64,12 +64,29 @@ const ProfileScreen = ({ setIsLoggedIn, navigation }) => {
     }
   };
 
+  // const handleLogout = async () => {
+  //   Alert.alert('Logout', 'Are you sure?', [
+  //     { text: 'Cancel', style: 'cancel' },
+  //     { text: 'Logout', onPress: async () => setIsLoggedIn && setIsLoggedIn(false) },
+  //   ]);
+  // };
+
   const handleLogout = async () => {
-    Alert.alert('Logout', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', onPress: async () => setIsLoggedIn && setIsLoggedIn(false) },
-    ]);
-  };
+  Alert.alert('Logout', 'Are you sure?', [
+    { text: 'Cancel', style: 'cancel' },
+    {
+      text: 'Logout',
+      onPress: async () => {
+        try {
+          await AsyncStorage.clear();   // 🔥 clears all stored data
+          setIsLoggedIn(false);         // update auth state
+        } catch (error) {
+          console.log('Error clearing storage:', error);
+        }
+      },
+    },
+  ]);
+};
 
   const selectImage = (type) => {
     const options = { mediaType: 'photo', includeBase64: false };

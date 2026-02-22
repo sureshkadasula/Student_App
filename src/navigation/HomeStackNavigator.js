@@ -17,6 +17,7 @@ import HostelScreen from '../screens/HostelScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
 import RequestCertificateManagementScreen from '../screens/RequestCertificateManagementScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import GalleryScreen from '../screens/GalleryScreen';
 import CustomHeader from '../components/CustomHeader';
 
 const Stack = createNativeStackNavigator();
@@ -63,6 +64,7 @@ const HomeStackNavigator = () => {
           headerShown: false,
         }}
       />
+      <Stack.Screen name="Gallery" component={GalleryScreen} />
     </Stack.Navigator>
   );
 };

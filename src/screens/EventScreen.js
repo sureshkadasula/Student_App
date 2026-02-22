@@ -272,11 +272,13 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#1f2937',
+    color: '#FF751F',
   },
   headerSubtitle: {
     fontSize: 14,

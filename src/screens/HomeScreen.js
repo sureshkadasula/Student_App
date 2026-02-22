@@ -13,6 +13,8 @@ import {
   Easing,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import GalleryService from '../services/GalleryService';
+import { Linking, Alert, ActivityIndicator } from 'react-native';
 
 const HomeScreen = () => {
   const navigation = useNavigation();
@@ -35,7 +37,6 @@ const HomeScreen = () => {
 
   const categories = [
     { name: 'Classes', icon: 'book', screen: 'Classes' },
-    { name: 'Assignments', icon: 'clipboard', screen: 'Assignments' },
     { name: 'Attendance', icon: 'check-circle', screen: 'Attendance' },
     { name: 'Event', icon: 'calendar', screen: 'Event' },
     { name: 'Admin Request', icon: 'cogs', screen: 'Admin Request' },
@@ -46,9 +47,68 @@ const HomeScreen = () => {
     { name: 'Notice Board', icon: 'bullhorn', screen: 'Notice Board' },
     { name: 'Profile', icon: 'user', screen: 'Profile' },
     { name: 'Transport', icon: 'bus', screen: 'Transport' },
+    { name: 'Gallery', icon: 'image', screen: 'Gallery' },
   ];
 
+  const [galleries, setGalleries] = useState([]);
+  const [galleriesLoading, setGalleriesLoading] = useState(true);
+
+  // Default gallery placeholder for folders or links without direct file IDs
+  const DEFAULT_FOLDER_IMAGE = 'https://images.unsplash.com/photo-1595708684082-a173bb3a06c5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+
+  const getDriveThumbnail = (url) => {
+    if (!url) return DEFAULT_FOLDER_IMAGE;
+    // Regex to extract file ID from various Google Drive link formats
+    const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (fileIdMatch && fileIdMatch[1]) {
+      const fileId = fileIdMatch[1];
+      return `https://lh3.googleusercontent.com/u/0/d/${fileId}=w400-h400-p`;
+    }
+    return DEFAULT_FOLDER_IMAGE;
+  };
+
+  const fetchGalleries = async () => {
+    try {
+      setGalleriesLoading(true);
+      const data = await GalleryService.fetchGalleries();
+      setGalleries(data || []);
+    } catch (error) {
+      console.error('Error loading galleries:', error);
+    } finally {
+      setGalleriesLoading(false);
+    }
+  };
+
+  const handleOpenGallery = (item) => {
+    if (item.drive_link) {
+      Linking.openURL(item.drive_link).catch((err) => {
+        console.error('Failed to open URL:', err);
+        Alert.alert('Error', 'Could not open the gallery link.');
+      });
+    } else {
+      Alert.alert('Note', 'No link available for this gallery.');
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return dateString;
+    }
+  };
+
   // ✅ TRUE INFINITE MARQUEE (width-aware)
+  useEffect(() => {
+    fetchGalleries();
+  }, []);
+
   useEffect(() => {
     if (!textWidth) return;
 
@@ -168,6 +228,54 @@ const HomeScreen = () => {
                 </View>
               ))}
             </View>
+
+            {/* INTEGRATED GALLERY PREVIEW */}
+            {/* <View style={styles.integratedGallery}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Activity Gallery</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Gallery')}>
+                  <Text style={styles.viewAllText}>View All</Text>
+                </TouchableOpacity>
+              </View>
+
+              {galleriesLoading ? (
+                <View style={styles.galleryLoadingContainer}>
+                  <ActivityIndicator size="small" color="#FF751F" />
+                </View>
+              ) : galleries.length > 0 ? (
+                <View>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.galleryHorizontalScroll}
+                  >
+                    {galleries.slice(0, 5).map((item) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.galleryItem}
+                        onPress={() => handleOpenGallery(item)}
+                      >
+                        <Image
+                          source={{ uri: getDriveThumbnail(item.drive_link) }}
+                          style={styles.galleryThumbnail}
+                          resizeMode="cover"
+                        />
+                        <View style={styles.galleryInfo}>
+                          <Text style={styles.galleryItemTitle} numberOfLines={1}>
+                            {item.title}
+                          </Text>
+                          <Text style={styles.galleryItemDate}>{formatDate(item.created_at)}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : (
+                <View style={styles.emptyGallery}>
+                  <Text style={styles.emptyGalleryText}>No gallery items available</Text>
+                </View>
+              )}
+            </View> */}
           </View>
         </View>
       </ScrollView>
@@ -264,6 +372,72 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#636160ff', // Grey text
     maxWidth: '100%',
+  },
+  integratedGallery: {
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    paddingTop: 15,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingHorizontal: 5,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+  },
+  viewAllText: {
+    fontSize: 12,
+    color: '#FF751F',
+    fontWeight: '700',
+  },
+  galleryHorizontalScroll: {
+    paddingBottom: 5,
+  },
+  galleryItem: {
+    width: 120,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginRight: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  galleryThumbnail: {
+    width: '100%',
+    height: 70,
+  },
+  galleryInfo: {
+    padding: 6,
+  },
+  galleryItemTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  galleryItemDate: {
+    fontSize: 9,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  galleryLoadingContainer: {
+    height: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyGallery: {
+    height: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyGalleryText: {
+    color: '#999',
+    fontSize: 12,
   },
 });
 

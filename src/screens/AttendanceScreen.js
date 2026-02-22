@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,103 @@ import {
   Dimensions,
   Platform
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
+import { useFocusEffect } from '@react-navigation/native';
 import { request } from '../services/api';
+import AuthService from '../services/AuthService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
+// --- Local Icons (replacing MaterialCommunityIcons) ---
+const Icon = ({ name, size = 24, color = '#000', style }) => {
+  let content;
+  switch (name) {
+    case 'check-circle':
+      content = (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <Path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <Path d="M22 4L12 14.01l-3-3" />
+        </Svg>
+      );
+      break;
+    case 'close-circle':
+      content = (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <Circle cx="12" cy="12" r="10" />
+          <Line x1="15" y1="9" x2="9" y2="15" />
+          <Line x1="9" y1="9" x2="15" y2="15" />
+        </Svg>
+      );
+      break;
+    case 'clock-alert':
+      content = (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <Circle cx="12" cy="12" r="10" />
+          <Path d="M12 6v6l4 2" />
+        </Svg>
+      );
+      break;
+    case 'information':
+      content = (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <Circle cx="12" cy="12" r="10" />
+          <Line x1="12" y1="16" x2="12" y2="12" />
+          <Line x1="12" y1="8" x2="12.01" y2="8" />
+        </Svg>
+      );
+      break;
+    case 'help-circle':
+      content = (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <Circle cx="12" cy="12" r="10"></Circle>
+          <Path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></Path>
+          <Line x1="12" y1="17" x2="12.01" y2="17"></Line>
+        </Svg>
+      );
+      break;
+    case 'chevron-right':
+      content = (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <Path d="M9 18l6-6-6-6" />
+        </Svg>
+      );
+      break;
+    case 'magnify':
+      content = (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <Circle cx="11" cy="11" r="8"></Circle>
+          <Line x1="21" y1="21" x2="16.65" y2="16.65"></Line>
+        </Svg>
+      );
+      break;
+    case 'calendar-blank-outline':
+      content = (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <Rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+          <Line x1="16" y1="2" x2="16" y2="6" />
+          <Line x1="8" y1="2" x2="8" y2="6" />
+          <Line x1="3" y1="10" x2="21" y2="10" />
+        </Svg>
+      );
+      break;
+    case 'close':
+      content = (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <Line x1="18" y1="6" x2="6" y2="18" />
+          <Line x1="6" y1="6" x2="18" y2="18" />
+        </Svg>
+      );
+      break;
+    default:
+      content = null;
+  }
+  return <View style={style}>{content}</View>;
+};
+
 const AttendanceScreen = () => {
+  const [profile, setProfile] = useState(null);
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,35 +120,84 @@ const AttendanceScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState('Monthly'); // Default to Monthly
+  const [selectedPeriod, setSelectedPeriod] = useState('Monthly');
+  const [backendSummary, setBackendSummary] = useState(null);
+  const [customDateModalVisible, setCustomDateModalVisible] = useState(false);
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [customDates, setCustomDates] = useState({
+    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0]
+  });
 
-  useEffect(() => {
-    fetchAttendance();
-  }, []);
+  const onDateChange = (event, selectedDate, type) => {
+    if (type === 'start') {
+      setShowStartDatePicker(Platform.OS === 'ios');
+      if (selectedDate) {
+        setCustomDates(prev => ({ ...prev, startDate: selectedDate.toISOString().split('T')[0] }));
+      }
+    } else {
+      setShowEndDatePicker(Platform.OS === 'ios');
+      if (selectedDate) {
+        setCustomDates(prev => ({ ...prev, endDate: selectedDate.toISOString().split('T')[0] }));
+      }
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchAttendance();
+    }, [selectedPeriod])
+  );
 
   const fetchAttendance = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const sessionStr = await AsyncStorage.getItem('auth_session');
-      if (!sessionStr) throw new Error('No session found.');
-      const session = JSON.parse(sessionStr);
-      const token = session.token;
+      const session = await AuthService.getSession();
+      if (!session || !session.token) throw new Error('No session found. Please login again.');
 
       const storedProfile = await AsyncStorage.getItem('student_profile');
       if (!storedProfile) throw new Error('Student profile not found.');
-      const profile = JSON.parse(storedProfile);
-      const classId = profile.class_id;
-      const studentId = profile.id;
+      const studentProfile = JSON.parse(storedProfile);
+      setProfile(studentProfile);
 
-      if (!classId || !studentId) throw new Error('ID missing in profile.');
+      const classId = studentProfile.class_id;
+      const studentId = studentProfile.id;
 
-      const url = `/classes/${classId}/students/${studentId}/attendance?limit=100`;
-      const response = await request(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!classId || !studentId) {
+        console.log("Missing profile info:", studentProfile);
+        throw new Error('Student class info missing.');
+      }
 
-      if (response.success) {
-        const mappedData = response.data.attendance_records.map(r => ({
+      // Calculate date range based on selectedPeriod
+      const today = new Date();
+      let startDate, endDate;
+      endDate = today.toISOString().split('T')[0];
+
+      if (selectedPeriod === 'Weekly') {
+        const day = today.getDay();
+        const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+        startDate = new Date(today.setDate(diff)).toISOString().split('T')[0];
+      } else if (selectedPeriod === 'Monthly') {
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+      } else if (selectedPeriod === 'Custom') {
+        startDate = customDates.startDate;
+        endDate = customDates.endDate;
+      }
+
+      const url = `/classes/${classId}/students/${studentId}/attendance-summary?startDate=${startDate}&endDate=${endDate}`;
+      console.log('🔗 [AttendanceScreen] Fetching from summary endpoint:', url);
+
+      const response = await request(url, { headers: { 'Authorization': `Bearer ${session.token}` } });
+
+      if (response.success && response.data) {
+        const { summary, attendance_records } = response.data;
+
+        setBackendSummary(summary);
+
+        const mappedData = (attendance_records || []).map(r => ({
           id: r.id,
           date: r.attendance_date,
           subject: r.subject || 'General',
@@ -81,57 +220,37 @@ const AttendanceScreen = () => {
 
   const subjects = useMemo(() => ['All', ...new Set(attendanceData.map(a => a.subject))], [attendanceData]);
 
-  const getPeriodAttendance = period => {
-    const today = new Date();
-    let startDate;
-
-    if (period === 'Weekly') {
-      const day = today.getDay();
-      const diff = today.getDate() - day + (day === 0 ? -6 : 1);
-      startDate = new Date(today.setDate(diff));
-    } else if (period === 'Monthly') {
-      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-    } else if (period === 'Yearly') {
-      startDate = new Date(today.getFullYear(), 0, 1);
+  const getPeriodAttendance = useCallback(() => {
+    if (backendSummary) {
+      return {
+        present: backendSummary.present,
+        absent: backendSummary.absent,
+        late: backendSummary.late,
+        excused: 0,
+        total: backendSummary.total_days,
+        percentage: Math.round(backendSummary.attendance_percentage || 0),
+        workingDays: backendSummary.working_days,
+        holidays: backendSummary.holidays
+      };
     }
 
-    const periodRecords = attendanceData.filter(record => new Date(record.date) >= startDate);
-    const presentRecords = periodRecords.filter(a => a.status === 'Present').length;
-    const absentRecords = periodRecords.filter(a => a.status === 'Absent').length;
-    const lateRecords = periodRecords.filter(a => a.status === 'Late').length;
-    const excusedRecords = periodRecords.filter(a => a.status === 'Excused').length;
-    const totalPresent = presentRecords + lateRecords + excusedRecords;
-    const totalRecords = periodRecords.length;
-
     return {
-      present: totalPresent,
-      absent: absentRecords,
-      late: lateRecords,
-      excused: excusedRecords,
-      total: totalRecords,
-      percentage: totalRecords > 0 ? Math.round((totalPresent / totalRecords) * 100) : 0,
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+      total: 0,
+      percentage: 0,
+      workingDays: 0,
+      holidays: 0
     };
-  };
-
-  const getSubjectAttendance = subject => {
-    const subjectRecords = attendanceData.filter(a => a.subject === subject);
-    const totalPresent = subjectRecords.filter(a => ['Present', 'Late', 'Excused'].includes(a.status)).length;
-    return subjectRecords.length > 0 ? Math.round((totalPresent / subjectRecords.length) * 100) : 0;
-  };
+  }, [backendSummary]);
 
   const filteredAttendance = useMemo(() => {
     let filtered = attendanceData;
 
     if (selectedSubject !== 'All') filtered = filtered.filter(record => record.subject === selectedSubject);
     if (selectedStatus !== 'All') filtered = filtered.filter(record => record.status === selectedStatus);
-
-    if (selectedDateRange !== 'All Time') {
-      const today = new Date();
-      let startDate;
-      if (selectedDateRange === 'This Month') startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-      else if (selectedDateRange === 'Last Month') startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      filtered = filtered.filter(record => new Date(record.date) >= startDate);
-    }
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -143,7 +262,7 @@ const AttendanceScreen = () => {
     }
 
     return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [selectedSubject, selectedDateRange, selectedStatus, searchQuery, attendanceData]);
+  }, [selectedSubject, selectedStatus, searchQuery, attendanceData]);
 
   const getStatusInfo = status => {
     switch (status) {
@@ -182,7 +301,6 @@ const AttendanceScreen = () => {
 
   const renderFilterButton = (filter, type) => {
     const isActive = (type === 'subject' && selectedSubject === filter) ||
-      (type === 'dateRange' && selectedDateRange === filter) ||
       (type === 'status' && selectedStatus === filter);
     return (
       <TouchableOpacity
@@ -190,7 +308,6 @@ const AttendanceScreen = () => {
         style={[styles.filterChip, isActive && styles.filterChipActive]}
         onPress={() => {
           if (type === 'subject') setSelectedSubject(filter);
-          else if (type === 'dateRange') setSelectedDateRange(filter);
           else if (type === 'status') setSelectedStatus(filter);
         }}
       >
@@ -201,13 +318,14 @@ const AttendanceScreen = () => {
 
   // Header Component
   const ListHeader = () => {
-    const periodData = getPeriodAttendance(selectedPeriod);
+    const periodData = getPeriodAttendance();
 
     return (
       <View style={styles.listHeaderContainer}>
-        {/* Modern Header */}
+        {/* Header - Showing Profile Info */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Attendance</Text>
+          {profile && <Text style={styles.headerSubtitle}>{profile.first_name} {profile.last_name} • Class {profile.class_name || profile.class_id}</Text>}
         </View>
 
         {/* Summary Card */}
@@ -215,18 +333,24 @@ const AttendanceScreen = () => {
           <View style={styles.summaryHeader}>
             <View>
               <Text style={styles.summaryTitle}>Overview</Text>
-              <Text style={styles.summarySubtitle}>Your attendance stats</Text>
+              <Text style={styles.summarySubtitle}>Attendance stats</Text>
             </View>
             {/* Period Selector inside Card */}
             <View style={styles.periodSelector}>
-              {['Weekly', 'Monthly'].map(period => (
+              {['Weekly', 'Monthly', 'Custom'].map(period => (
                 <TouchableOpacity
                   key={period}
                   style={[styles.periodBtn, selectedPeriod === period && styles.periodBtnActive]}
-                  onPress={() => setSelectedPeriod(period)}
+                  onPress={() => {
+                    if (period === 'Custom') {
+                      setCustomDateModalVisible(true);
+                    } else {
+                      setSelectedPeriod(period);
+                    }
+                  }}
                 >
                   <Text style={[styles.periodBtnText, selectedPeriod === period && styles.periodBtnTextActive]}>
-                    {period === 'Weekly' ? 'Week' : 'Month'}
+                    {period === 'Weekly' ? 'Week' : period === 'Monthly' ? 'Month' : 'Custom'}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -251,7 +375,20 @@ const AttendanceScreen = () => {
                 <Text style={[styles.statValue, { color: '#f59e0b' }]}>{periodData.late}</Text>
                 <Text style={styles.statLabel}>Late</Text>
               </View>
+              <View style={styles.statBox}>
+                <Text style={[styles.statValue, { color: '#3b82f6' }]}>{periodData.holidays}</Text>
+                <Text style={styles.statLabel}>Holidays</Text>
+              </View>
             </View>
+          </View>
+
+          <View style={styles.workingDaysContainer}>
+            <Text style={styles.workingDaysText}>
+              Working Days: <Text style={styles.workingDaysValue}>{periodData.workingDays}</Text>
+            </Text>
+            <Text style={styles.workingDaysText}>
+              Total Days: <Text style={styles.workingDaysValue}>{periodData.total}</Text>
+            </Text>
           </View>
         </View>
 
@@ -342,6 +479,70 @@ const AttendanceScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Custom Date Range Modal */}
+      <Modal animationType="fade" transparent={true} visible={customDateModalVisible} onRequestClose={() => setCustomDateModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.datePickerModal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Set Custom Range</Text>
+              <TouchableOpacity onPress={() => setCustomDateModalVisible(false)} style={styles.closeBtn}>
+                <Icon name="close" size={20} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.dateInputsRow}>
+              <View style={styles.dateInputGroup}>
+                <Text style={styles.inputLabel}>Start Date</Text>
+                <TouchableOpacity
+                  style={styles.dateInput}
+                  onPress={() => setShowStartDatePicker(true)}
+                >
+                  <Text style={styles.dateInputText}>{customDates.startDate}</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.dateInputGroup}>
+                <Text style={styles.inputLabel}>End Date</Text>
+                <TouchableOpacity
+                  style={styles.dateInput}
+                  onPress={() => setShowEndDatePicker(true)}
+                >
+                  <Text style={styles.dateInputText}>{customDates.endDate}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {showStartDatePicker && (
+              <DateTimePicker
+                value={new Date(customDates.startDate)}
+                mode="date"
+                display="default"
+                onChange={(e, d) => onDateChange(e, d, 'start')}
+              />
+            )}
+
+            {showEndDatePicker && (
+              <DateTimePicker
+                value={new Date(customDates.endDate)}
+                mode="date"
+                display="default"
+                onChange={(e, d) => onDateChange(e, d, 'end')}
+              />
+            )}
+
+            <TouchableOpacity
+              style={styles.applyBtn}
+              onPress={() => {
+                setSelectedPeriod('Custom');
+                setCustomDateModalVisible(false);
+                fetchAttendance();
+              }}
+            >
+              <Text style={styles.applyBtnText}>Apply Custom Range</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -363,7 +564,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#ff751f',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    marginTop: 4
   },
 
   listHeaderContainer: { marginBottom: 10 },
@@ -420,6 +626,23 @@ const styles = StyleSheet.create({
   statBox: { alignItems: 'center' },
   statValue: { fontSize: 18, fontWeight: '700', marginBottom: 2 },
   statLabel: { fontSize: 12, color: '#94a3b8' },
+
+  workingDaysContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  workingDaysText: {
+    fontSize: 13,
+    color: '#64748b',
+  },
+  workingDaysValue: {
+    fontWeight: '700',
+    color: '#1e293b',
+  },
 
   sectionTitleCont: { paddingHorizontal: 20, marginBottom: 12 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#334155' },
@@ -489,6 +712,55 @@ const styles = StyleSheet.create({
   detailValue: { color: '#0f172a', fontSize: 14, fontWeight: '500' },
   remarksContainer: { marginTop: 8 },
   remarksText: { marginTop: 8, color: '#334155', backgroundColor: '#f8fafc', padding: 12, borderRadius: 8, fontSize: 14, fontStyle: 'italic' },
+
+  // Custom Date Picker Styles
+  datePickerModal: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    width: '100%',
+  },
+  dateInputsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 24,
+  },
+  dateInputGroup: {
+    flex: 1,
+  },
+  inputLabel: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 6,
+    fontWeight: '600',
+  },
+  dateInput: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#0f172a',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  dateInputText: {
+    color: '#0f172a',
+    fontSize: 14,
+  },
+  applyBtn: {
+    backgroundColor: '#FF751F',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  applyBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
 });
 
 export default AttendanceScreen;

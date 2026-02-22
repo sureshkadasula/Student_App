@@ -71,7 +71,7 @@ const CustomDrawerContent = (props) => {
                 labelStyle={styles.drawerLabel}
                 style={styles.drawerItem}
             />
-            <DrawerItem
+            {/* <DrawerItem
                 label="Assignments"
                 icon={({ color, size }) => <Icon name="clipboard" size={size} color={color} />}
                 onPress={() => navigateToScreen('Assignments')}
@@ -81,7 +81,7 @@ const CustomDrawerContent = (props) => {
                 inactiveBackgroundColor="transparent"
                 labelStyle={styles.drawerLabel}
                 style={styles.drawerItem}
-            />
+            /> */}
             <DrawerItem
                 label="Time Table"
                 icon={({ color, size }) => <Icon name="clock-o" size={size} color={color} />}
