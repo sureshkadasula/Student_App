@@ -12,14 +12,14 @@ import { EyeIcon, EyeOffIcon } from '../components/Icons';
 import AuthService from '../services/AuthService';
 
 const LoginScreen = ({ setIsLoggedIn }) => {
-  const [email, setEmail] = useState('');
+  const [userid, setUserid] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
-    if (email && password) {
+    if (userid && password) {
       try {
-        const userData = await AuthService.login(email, password);
+        const userData = await AuthService.login(userid, password);
         Alert.alert('Login Successful', `Welcome, ${userData.user.name}!`);
         setIsLoggedIn(true);
       } catch (error) {
@@ -27,7 +27,7 @@ const LoginScreen = ({ setIsLoggedIn }) => {
         console.log(error);
       }
     } else {
-      Alert.alert('Error', 'Please enter both email and password.');
+      Alert.alert('Error', 'Please enter both User ID and password.');
     }
   };
 
@@ -40,10 +40,9 @@ const LoginScreen = ({ setIsLoggedIn }) => {
       <Text style={styles.title}>Student Portal Login</Text>
       <TextInput
         style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
+        placeholder="User ID"
+        value={userid}
+        onChangeText={setUserid}
         autoCapitalize="none"
         selectionColor="#FF751F"
       />

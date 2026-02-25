@@ -6,10 +6,10 @@ const AUTH_SESSION_KEY = 'auth_session';
 
 const AuthService = {
     // Login and save session
-    login: async (email, password) => {
+    login: async (userid, password) => {
         const response = await request('/auth/login', {
             method: 'POST',
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({ userid, password }),
         });
 
         if (response.success) {
