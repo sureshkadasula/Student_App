@@ -14,7 +14,9 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import GalleryService from '../services/GalleryService';
-import { Linking, Alert, ActivityIndicator } from 'react-native';
+import BannerService from '../services/BannerService';
+import ImageSlider from '../components/ImageSlider';
+import { Linking, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 
 const HomeScreen = () => {
   const navigation = useNavigation();
@@ -34,6 +36,8 @@ const HomeScreen = () => {
     require('../assets/sliderImages/Montmorenci_School.png'),
   ];
   const [activeSlide, setActiveSlide] = useState(0);
+  const [banners, setBanners] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   const categories = [
     { name: 'Classes', icon: 'book', screen: 'Classes' },
@@ -107,7 +111,26 @@ const HomeScreen = () => {
   // ✅ TRUE INFINITE MARQUEE (width-aware)
   useEffect(() => {
     fetchGalleries();
+    fetchBanners();
   }, []);
+
+  const fetchBanners = async () => {
+    try {
+      const data = await BannerService.getBanners();
+      setBanners(data || []);
+    } catch (error) {
+      console.error('Error fetching banners:', error);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchGalleries(),
+      fetchBanners()
+    ]);
+    setRefreshing(false);
+  };
 
   useEffect(() => {
     if (!textWidth) return;
@@ -130,27 +153,17 @@ const HomeScreen = () => {
     };
   }, [textWidth, scrollAnim]);
 
-  // slider auto-scroll
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveSlide(prev => {
-        const next = (prev + 1) % slides.length;
-        scrollViewRef.current?.scrollTo({
-          x: next * Dimensions.get('window').width,
-          animated: true,
-        });
-        return next;
-      });
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [slides.length]);
 
   return (
     <View style={{ flex: 1 }}>
       <StatusBar backgroundColor="#fff" barStyle="dark-content" />
 
-      <ScrollView style={{ flex: 1 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* HEADER */}
         {/* ✅ MARQUEE */}
         <View style={styles.marqueeContainer}>
@@ -181,34 +194,7 @@ const HomeScreen = () => {
         </View>
 
         {/* SLIDER */}
-        <View style={{ position: 'relative' }}>
-          <ScrollView
-            ref={scrollViewRef}
-            horizontal
-            snapToInterval={Dimensions.get('window').width - 40 + 20} // Width + Margin
-            showsHorizontalScrollIndicator={false}
-            style={{ marginTop: 10 }}
-            contentContainerStyle={{ paddingHorizontal: 20 }}
-          >
-            {slides.map((slide, index) => (
-              <View key={index} style={styles.slide}>
-                <Image source={slide} style={styles.slideImage} />
-              </View>
-            ))}
-          </ScrollView>
-
-          <View style={styles.dots}>
-            {slides.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.dot,
-                  { backgroundColor: activeSlide === index ? '#FF751F' : '#ccc' },
-                ]}
-              />
-            ))}
-          </View>
-        </View>
+        <ImageSlider data={banners} />
 
         {/* CATEGORIES */}
         <View style={styles.container}>
@@ -300,30 +286,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     marginRight: 20, // Added spacing like dashboard.tsx
-  },
-  slide: {
-    width: Dimensions.get('window').width - 40, // Match dashboard.tsx (-40 instead of -20)
-    height: 200,
-    marginRight: 20, // Match dashboard.tsx margin
-    borderRadius: 8, // Reduced from 15 to 8
-    overflow: 'hidden',
-  },
-  slideImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  dots: {
-    position: 'absolute',
-    bottom: 10,
-    flexDirection: 'row',
-    alignSelf: 'center',
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginHorizontal: 5,
   },
   container: {
     alignItems: 'center',
